@@ -67,28 +67,26 @@
 
 ## AI分析总结
 
-### 总结
+### 主要更新类型
+- **重构/代码清理**：移除了旧的编译相关配置（`"compile": true`），属于内部清理和优化。
 
-1. **主要更新类型**  
-   - **代码清理/重构**：删除旧的编译相关代码（`compile: true` 选项），属于技术债务清理。
+### 关键变更点及其与项目整体方向的关系
+- **变更点**：删除了与旧编译模式（`compile: true`）有关的代码或配置。
+- **与项目方向的关系**：LightX2V 定位为轻量视频生成推理框架，删除过时/冗余的编译选项有助于降低代码复杂度、减少维护成本，符合“轻量化”和“高效推理”的核心目标。
 
-2. **关键变更点及其与项目方向的关系**  
-   - 移除了已废弃的编译开关（`compile: true`），推测该选项对应早期的图编译或模型编译逻辑。  
-   - 与项目“轻量视频生成推理”目标一致：删除冗余代码可降低维护复杂度，避免新用户误用旧方案，为进一步优化推理路径（如采用更高效的 JIT 或预编译方式）扫清障碍。
+### 对项目的影响和潜在意义
+- **影响**：消除对旧编译路径的依赖，可能简化模型加载或推理的默认行为；小幅减少包体积和构建时间。
+- **潜在意义**：
+  - 为后续引入新的编译策略（如动态编译、图优化）腾出空间。
+  - 减少因新旧编译模式共存可能引发的兼容性隐患。
 
-3. **对项目的影响和潜在意义**  
-   - **正面影响**：减少代码臃肿，提升可读性和可维护性；消除可能因残留编译逻辑导致的兼容性问题。  
-   - **潜在意义**：暗示项目可能统一了编译策略（例如默认启用某种轻量编译），或移除了不兼容旧版本 PyTorch 的编译路径，为后续支持新硬件/后端做准备。
+### 值得关注的技术点
+- **编译选项的演进**：`compile=true` 可能关联 `torch.compile` 或自定义 JIT 编译，删除旧选项暗示团队已转向更稳定或更高效的编译方案。
+- **向后兼容性**：需确认下游用户配置中是否仍依赖此选项，但 #1312 作为清理提交通常已考虑兼容性。
 
-4. **值得关注的技术点**  
-   - 旧编译方式（`compile: true`）的具体实现与废弃原因。如果涉及 `torch.compile` 或自定义图优化，需确认是否被更现代、更稳定的替代方案（如 `torch.compile` 的稳定版本或 ONNX 导出）取代。  
-   - 提交仅涉及删除，未提及替代方案，需关注后续是否引入新的编译选项。
-
-5. **对项目发展的影响（结合 README 背景）**  
-   - LightX2V 定位为轻量推理框架，强调部署便捷性与性能平衡。删除旧编译选项可能意味着：  
-     - 移除了对早前 PyTorch 版本（<2.0）自编译的支持，转向更标准的 `torch.compile` 或纯 Python 推理路径，降低用户环境配置门槛。  
-     - 简化了模型加载流程，使新用户无需关心是否需手动启用编译，提升开箱即用体验。  
-   - 该提交属于渐进式优化，虽不直接增加功能，但有助于长期稳定性和演进速度。
+### 基于 README 背景，该提交如何影响项目发展
+- 项目强调“轻量”和“高效”，删除旧编译代码是对该理念的贯彻——精简不必要的功能分支，聚焦核心推理能力。
+- 此举可能为后续加速视频生成推理（如引入更细粒度的算子编译、量化编译）扫清障碍，推动项目向更专业、更易维护的方向演进。
 
 ## 详细提交记录
 
@@ -135,16 +133,323 @@
 
 - **描述**: FlashInfer: Kernel Library for LLM Serving
 - **语言**: Python
-- **星标数**: 6069
-- **最后更新**: 2026-07-30T13:51:54Z
+- **星标数**: 6070
+- **最后更新**: 2026-07-30T22:16:45Z
 
 ## 提交统计
 
-- **昨日提交总数**: 0
+- **昨日提交总数**: 2
+- **提交者数量**: 2
+- **主要提交者**: Ziang Li, Xinyuan Tong
 
 ## AI分析总结
 
-昨日无提交
+### 1. 主要更新类型
+- **功能新增**：两笔提交均为新特性（feat），未包含 Bug 修复、性能优化或文档更新。
+
+### 2. 关键变更点与项目整体方向的关系
+- **独立页表行起始（第一笔）**：
+  - 在 `top_k_page_table_transform` 中新增可选的 `page_table_row_starts` 参数，允许评分窗口与页表翻译窗口使用不同的起始偏移量。
+  - 解决 SGLang 融合 PAGED DSA 路径中只能回退到 SGL 内核的问题，使 FlashInfer 的 fused top-k 能原生支持该场景。
+  - 项目方向：增强 paged attention 场景下的灵活性，减少对外部内核的依赖，提升确定性和图安全性。
+
+- **无 RoPE 尾部 MLA 解码（第二笔）**：
+  - 为 `kv_lora_rank=512, qk_rope_head_dim=0` 的稀疏 MLA 解码提供原生支持，新增可选 `sparse_mla_top_k_lens` 张量传入活动长度。
+  - 注册新的 `nope_mla_dimensions` 维度集，修改 launcher 以适配单缓存池动态稀疏 gather。
+  - 项目方向：拓展 MLA 注意力机制的覆盖范围，尤其针对 DeepSeek 等无旋转尾部的变体，使其能被 TRTLLM-GEN 原生服务。
+
+### 3. 对项目的影响与潜在意义
+- **影响**：
+  - 第一笔使 FlashInfer 的 fused top-k 可处理更复杂的分页窗口分离场景，提升在推理框架（如 SGLang）中的可用性。
+  - 第二笔填补稀疏 MLA 解码的形态空白，减少用户因形状不支持而回退到其他内核的情况。
+- **意义**：
+  - 增加 API 的灵活性（向后
+
+## 详细提交记录
+
+### [b1055a7](https://github.com/flashinfer-ai/flashinfer/commit/b1055a7aaf47a4a70ba26acd1cece329f4a828d2)
+
+- **作者**: Ziang Li
+- **时间**: 2026-07-30T22:16:40Z
+- **提交信息**: feat(topk): support separate page table row starts (#4169)
+
+<!-- .github/pull_request_template.md -->
+
+## 📌 Description
+
+@humansand
+
+SGLang needs `top_k_page_table_transform` to support independent
+score-window and page-table starts in its fused packed PAGED DSA path:
+
+- `row_starts` identifies the score window used for top-k selection.
+- `page_table_row_starts` identifies the page-table window used to
+translate the selected local indices.
+
+The current FlashInfer API applies `row_starts` to both operations, so
+it cannot represent this case. SGLang must therefore fall back to the
+SGL kernel even when `--dsa-topk-backend flashinfer` is selected. That
+produces correct indices, but it bypasses FlashInfer's deterministic,
+tie-break, and graph-safe fused top-k behavior for this path.
+
+This PR adds optional `page_table_row_starts` support. When it is
+omitted, FlashInfer continues to use `row_starts` for both operations,
+preserving the existing API behavior. The separate start is propagated
+through the Python and trace APIs, TVM FFI binding, radix and filtered
+implementations, deterministic post-sort, graph-safe dispatch, and the
+trivial `length <= k` path.
+
+Once SGLang adopts a FlashInfer release containing this API, it can
+remove the packed PAGED fallback and use FlashInfer fused top-k with the
+intended backend semantics. This PR does not change the SGLang call
+site.
+
+### API Design
+
+For each output row `i`, define:
+
+```text
+batch_i       = row_to_batch[i]             if row_to_batch is provided, else i
+score_start_i = row_starts[i]               if row_starts is provided, else 0
+page_start_i  = page_table_row_starts[i]    if page_table_row_starts is provided,
+                else score_start_i
+length_i      = lengths[i]
+```
+
+Top-k selection produces local offsets `local_idx[i, j]` in `[0,
+length_i)` by ranking:
+
+```text
+input[i, score_start_i + local_idx[i, j]]
+```
+
+The page-table transform uses the same local offsets but an independent
+page-table origin:
+
+```text
+output[i, j] = src_page_table[batch_i, page_start_i + local_idx[i, j]]
+```
+
+**`page_table_row_starts` affects only the page-table lookup used to
+produce output values.** It does not change the input score window, the
+selected local offsets, or the output tensor shape; it only changes
+which columns of `src_page_table` are gathered into the output.
+
+The argument responsibilities are therefore orthogonal:
+
+- `row_to_batch` selects only the row of `src_page_table`; multiple
+score rows may map to the same page-table row.
+- `row_starts` selects only the score-window origin.
+- `page_table_row_starts` selects only the page-table-window origin. It
+may be provided independently of `row_starts`; when omitted, it reuses
+`row_starts` for backward compatibility.
+
+If `length_i <= k`, all local offsets `0..length_i-1` are transformed
+and the remaining output positions are `-1`. Otherwise, exactly `k`
+local offsets are selected according to the existing deterministic and
+tie-break semantics.
+
+Each optional mapping/start tensor has shape `(num_rows,)`, dtype
+`int32`, and resides on the same CUDA device as `input`. Callers must
+satisfy `0 <= length_i`, `0 <= batch_i < src_page_table.shape[0]`, `0 <=
+score_start_i`, `score_start_i + length_i <= input.shape[1]`, `0 <=
+page_start_i`, and `page_start_i + length_i <= src_page_table.shape[1]`.
+
+This selection-plus-gather contract is not specific to SGLang: it
+represents any packed layout where score storage and lookup-table
+storage use different origins. Absolute starts are used instead of
+deltas so the API does not assume a relationship between the two windows
+or expose framework-specific metadata such as `cu_seqlens`.
+
+## 🔍 Related Issues
+
+- SGLang DSA top-k backend integration:
+https://github.com/sgl-project/sglang/pull/22851
+- SGLang packed PAGED correctness fallback and backend-selection
+cleanup: https://github.com/sgl-project/sglang/pull/32490
+
+## 🚀 Pull Request Checklist
+
+Thank you for contributing to FlashInfer! Before we review your pull
+request, please make sure the following items are complete.
+
+### ✅ Pre-commit Checks
+
+- [x] I have installed `pre-commit` by running `pip install pre-commit`
+(or used your preferred method).
+- [x] I have installed the hooks with `pre-commit install`.
+- [x] I have run the hooks manually with `pre-commit run --all-files`
+and fixed any reported issues.
+
+> If you are unsure about how to set up `pre-commit`, see [the
+pre-commit documentation](https://pre-commit.com/).
+
+## 🧪 Tests
+
+- [x] Tests have been added or updated as needed.
+- [x] All tests are passing (`unittest`, etc.).
+
+Validation on an NVIDIA B200 using the editable source build and source
+JIT:
+
+```text
+pre-commit run --all-files
+Passed
+
+python3 -m pytest -vv -s tests/utils/test_topk.py -k 'test_top_k_transform_with_row_starts'
+48 passed, 1334 deselected, 2 warnings in 0.61s
+```
+
+The test extends the existing `test_top_k_transform_with_row_starts`
+Cartesian product across radix/filtered dispatch, graph-safe mode,
+deterministic mode, shared/separate starts, and both trivial and
+selected rows.
+
+## Reviewer Notes
+
+Review focus is welcome on propagation through the deterministic
+post-sort and graph-safe filtered paths, where page-table translation
+occurs separately from score selection.
+
+
+
+<!-- This is an auto-generated comment: release notes by coderabbit.ai
+-->
+## Summary by CodeRabbit
+
+* **New Features**
+* Added optional `page_table_row_starts` support to the fused Top‑K
+page-table transform for independent per-row destination window offsets.
+* Updated tracing and reference implementations to model separate
+score-window (`row_starts`) and destination page-table-window
+(`page_table_row_starts`) offsets.
+* **Bug Fixes**
+* Corrected page-table addressing when the score and destination windows
+start at different offsets.
+* **Tests**
+* Expanded Top‑K transform coverage to include deterministic mode and
+separate `page_table_row_starts`, with additional trace-based reference
+checks.
+<!-- end of auto-generated comment: release notes by coderabbit.ai -->
+
+### [a02d94d](https://github.com/flashinfer-ai/flashinfer/commit/a02d94de5796650ead1c6be27b834c3a063bf45d)
+
+- **作者**: Xinyuan Tong
+- **时间**: 2026-07-30T16:46:12Z
+- **提交信息**: feat: support native qk_rope_head_dim=0 sparse MLA decode in trtllm-gen (#4108)
+
+## 📌 Description
+
+Adds a native TRTLLM-GEN sparse MLA decode path for the shape with **no
+rotary tail**: `kv_lora_rank=512`, `qk_rope_head_dim=0`.
+
+For this shape the query carries no RoPE component, and both KV TMA
+descriptors address a **single 512-wide cache pool**, so the kernel
+needs the per-request active lengths to bound the sparse gather. Today
+`trtllm_batch_decode_with_kv_cache_mla` only accepts
+`deepseek_mla_dimensions` and `smaller_mla_dimensions`, so a
+`qk_rope_head_dim=0` request is rejected as an unsupported MLA
+dimension.
+
+This PR registers the new dimension set and threads an optional
+`sparse_mla_top_k_lens` tensor down to the launcher so the shape can be
+served natively.
+
+**Changes**
+
+- **`csrc/trtllm_fmha_kernel_launcher.cu`** — add an optional
+`sparse_mla_top_k_lens` argument to `trtllm_paged_attention_decode`.
+When the single-pool dynamic sparse MLA shape is detected
+(`sparse_mla_top_k_lens` present and MLA decode), pass the key cache as
+the sliding-window KV pool so the kernel reads the active per-token
+lengths. The launcher already rejects combining block-sparse attention
+with sparse MLA (`sparse_mla_top_k <= 0` check), so the two stay
+mutually exclusive.
+- **`flashinfer/mla/_core.py`** — register `nope_mla_dimensions`
+(`kv_lora_rank=512`, `qk_rope_head_dim=0`); require `sparse_mla_top_k >
+0` and a `sparse_mla_top_k_lens` tensor for this shape; thread the
+autotune profiling length through the decode tuning config so different
+`top_k` values key distinct autotune configs; expose
+`sparse_mla_top_k_lens` on the public
+`trtllm_batch_decode_with_kv_cache_mla`.
+- **`flashinfer/decode.py`** — forward the new optional argument at the
+two existing kernel call sites.
+- **`flashinfer/trace/templates/attention.py`** — declare the optional
+`sparse_mla_top_k_lens` input on the sparse MLA decode trace template so
+the trace schema matches the kernel signature.
+
+The new argument is **optional and defaults to `None`**, so the
+`deepseek_mla_dimensions` / `smaller_mla_dimensions` decode paths are
+unchanged. `sparse_mla_top_k_lens` (one `int32` active length per query
+token) is supplied by the caller.
+
+## 🔍 Related Issues
+
+None.
+
+## 🚀 Pull Request Checklist
+
+Thank you for contributing to FlashInfer! Before we review your pull
+request, please make sure the following items are complete.
+
+### ✅ Pre-commit Checks
+
+- [x] I have installed `pre-commit` by running `pip install pre-commit`
+(or used your preferred method).
+- [x] I have installed the hooks with `pre-commit install`.
+- [x] I have run the hooks manually with `pre-commit run --all-files`
+and fixed any reported issues.
+
+> If you are unsure about how to set up `pre-commit`, see [the
+pre-commit documentation](https://pre-commit.com/).
+
+## 🧪 Tests
+
+- [ ] Tests have been added or updated as needed.
+- [ ] All tests are passing (`unittest`, etc.).
+
+Static checks pass (`clang-format` / `ruff` / `mypy` via `pre-commit`).
+The new path has been exercised end-to-end in a downstream serving stack
+that computes `sparse_mla_top_k_lens` from the page table and drives
+this decode path. Happy to add a focused in-tree unit test for the
+`qk_rope_head_dim=0` dimension registration + argument threading — see
+Reviewer Notes.
+
+## Reviewer Notes
+
+- **Backward compatibility**: `sparse_mla_top_k_lens` is optional and
+defaults to `None`; all existing callers and the two established MLA
+dimension sets keep their current behavior.
+- **Mutual exclusion**: block-sparse attention and sparse MLA are
+already mutually exclusive in the launcher (`sparse_mla_top_k <= 0`
+check), so the new single-pool path cannot be entered together with
+block-sparse.
+- **Autotune keying**: the profiling length is threaded through the
+decode tuning config and into the cache key, so a dense request
+(`len(inputs)==4`) and a sparse request (`len(inputs)==5`) resolve to
+distinct autotune configs rather than mis-keying.
+- I can add a unit test covering the dimension registration and the
+optional-argument threading if you'd like it in-tree — let me know the
+preferred test shape.
+
+
+<!-- This is an auto-generated comment: release notes by coderabbit.ai
+-->
+## Summary by CodeRabbit
+
+* **New Features**
+  * Added support for native no-RoPE MLA decoding.
+* Added optional per-query sparse attention lengths for supported MLA
+decode workloads.
+* Added validation for sparse attention length tensor type, shape,
+device, and contiguity.
+* Integrated sparse MLA inputs with direct decoding and autotuning
+paths.
+
+* **Bug Fixes**
+* Improved handling of supported MLA head configurations during decode
+dispatch.
+<!-- end of auto-generated comment: release notes by coderabbit.ai -->
 
 ---
 
@@ -159,8 +464,8 @@
 
 - **描述**: A unified inference and post-training framework for accelerated video generation.
 - **语言**: Python
-- **星标数**: 3896
-- **最后更新**: 2026-07-30T08:45:59Z
+- **星标数**: 3897
+- **最后更新**: 2026-07-30T17:32:26Z
 
 ## 提交统计
 
@@ -183,8 +488,8 @@
 
 - **描述**: 🤗 Diffusers: State-of-the-art diffusion models for image, video, and audio generation in PyTorch.
 - **语言**: Python
-- **星标数**: 34195
-- **最后更新**: 2026-07-30T15:26:51Z
+- **星标数**: 34196
+- **最后更新**: 2026-07-30T20:52:08Z
 
 ## 提交统计
 
@@ -194,26 +499,27 @@
 
 ## AI分析总结
 
-### 1. 主要更新类型
-- **文档更新**：提交 `7685bff` 改进了调度文件夹（Scheduling folder）的文档字符串，属于文档质量提升。
-- **功能新增**：提交 `8b33b47` 引入了 `SDNQ`（一种量化方法）的核心加载功能，属于新增特性。
+### 总结分析
 
-### 2. 关键变更点及其与项目整体方向的关系
-- **文档更新**：围绕 `SchedulerMixin` 及其参数文档进行完善，体现了项目成熟化过程中对开发者体验（DX）的重视，为社区贡献和用户上手提供更清晰的指引。
-- **量化支持**：实现了量化模型加载的核心逻辑（`SDNQ`），包括对 transformers 的注册、版本检查、环境标志、依赖管理等。这与 diffusers 项目追求**高效推理、模型压缩、跨框架兼容**的方向一致，尤其针对边缘设备和资源受限场景。
+#### 1. 主要更新类型
+- **文档更新**：提交 #14330 改进了 `scheduling` 文件夹中文档字符串的质量（最后一批）。
+- **功能新增**：提交 #14277 引入了量化模块 `SDNQ` 的核心加载功能。
 
-### 3. 对项目的影响和潜在意义
-- 文档更新降低新贡献者参与门槛，减少因参数说明不清导致的误用。
-- 量化支持使 diffusers 能够加载经过量化的模型（SDNQ），**显著降低模型存储和内存占用**，同时保持推理速度。这为在移动端、Web端部署扩散模型铺平了道路，扩大项目生态应用范围。
+#### 2. 关键变更点及其与项目整体方向的关系
+- **文档优化**：聚焦于调度器（scheduler）的 API 文档，提升可读性和易用性。这与 Diffusers 作为开源库强调“易用性”和“社区友好”的方向一致，有助于降低用户对复杂调度参数的理解门槛。
+- **量化支持**：新增 `SDNQ` 量化加载，允许模型在推理时以更低的精度运行。这属于性能优化/模型压缩方向，直接命中 Diffusers 在部署场景（边缘设备、低显存环境）中的痛点，扩展了项目的实用性。
 
-### 4. 值得关注的技术点
-- **SDNQ 的核心加载机制**：涉及 `register_to_transformers`、`extras` 依赖管理、`version warning silenceable` 等设计，体现了模块化和向后兼容的考量。
-- **环境标志与门控逻辑**：通过环境变量控制量化行为，避免对用户透明引入破坏性变化，典型的安全设计模式。
-- **仅模型级别测试**：提交明确在 pipeline 级别移除了测试，专注于模型级量化验证，说明该特性尚处于初期集成阶段。
+#### 3. 对项目的影响和潜在意义
+- **文档更新**：提升了库的完整度和专业度，减少因文档缺失导致的用户疑问，间接降低维护成本。
+- **量化功能**：使 Diffusers 能够支持新一代量化技术（SDNQ），可能为后续模型压缩（如蒸馏、剪枝）提供基础组件。对商业部署和资源受限场景有实际价值，增强项目竞争力。
 
-### 5. 对项目发展的影响（结合 README 背景）
-- README 强调 diffusers 是“最先进的扩散模型库”，量化支持（如 SDNQ）有助于实现 “run diffusion models on consumer hardware” 的愿景，推动低资源环境下的落地。
-- 文档持续改进反映了项目向工业级、高可维护性演进；量化特性则标志着从“模型定义”扩展到“模型部署与优化”的完整链条，帮助 diffusers 巩固在生成式 AI 工具链中的核心地位。
+#### 4. 值得关注的技术点
+- **SDNQ 量化**：提交中涉及“transformers 注册、版本检查、环境标志、模块级测试”等实现细节，表明这是一个经过架构设计的模块，而非临时补丁。未来可能作为标准量化入口。
+- **文档规范化**：提交者特意标注“last batch”，暗示此次是系列文档改进的收尾，说明团队有系统地梳理调度器文档的计划。
+
+#### 5. 基于项目背景对项目发展的影响
+- 基于 Diffusers 作为扩散模型生态核心库的定位，**文档更新**直接提升开发者体验，吸引更多用户贡献和二次开发。
+- **量化支持**直接对应“从研究到生产”的转化需求，使 Diffusers 从实验性代码库向生产级推理框架演进。结合已有功能（如 ONNX、Dynamo），进一步完善了模型压缩与部署工具链。
 
 ## 详细提交记录
 
@@ -296,8 +602,8 @@ Co-authored-by: Sayak Paul <spsayakpaul@gmail.com>
 
 - **描述**: Enjoy the magic of Diffusion models!
 - **语言**: Python
-- **星标数**: 12779
-- **最后更新**: 2026-07-30T12:18:05Z
+- **星标数**: 12782
+- **最后更新**: 2026-07-30T20:43:56Z
 
 ## 提交统计
 
@@ -320,61 +626,103 @@ Co-authored-by: Sayak Paul <spsayakpaul@gmail.com>
 
 - **描述**: SGLang is a high-performance serving framework for large language models and multimodal models.
 - **语言**: Python
-- **星标数**: 30970
-- **最后更新**: 2026-07-30T15:41:28Z
+- **星标数**: 30976
+- **最后更新**: 2026-07-30T22:21:58Z
 
 ## 提交统计
 
-- **昨日提交总数**: 21
-- **提交者数量**: 14
-- **主要提交者**: YC Yen-Ching Tseng, Ding Yin, Yanbin Jiang
+- **昨日提交总数**: 34
+- **提交者数量**: 21
+- **主要提交者**: Zheng Wengang, Henning Thieß, Ho-Ren (Jack) Chuang
 
 ## AI分析总结
 
-根据您提供的仓库README摘要和提交记录，以下是对昨日（2025/04/10前后）sgl-project/sglang第1批（共21个）提交的分析总结。
-
----
-
-### 1. 主要更新类型
-
-| 类型 | 数量占比 | 典型提交 |
-|------|---------|----------|
-| 🐛 Bug修复 | 约30% | DeepSeek V4加载修复、NPU MTP+eagle形状错误、LFM 2工具解析器修复、LoRA Marlin内核导入修复、EPD mooncake GPU embedding修复 |
-| ⚡ 性能优化 | 约30% | Fast-path chain-style draft token、跳过树掩码填充、KV-cache融合（非对称K/V）、Q8KV8 FP8稀疏预填充、多层级EAGLE draft扩展重播计数修复 |
-| ➕ 功能新增 | 约20% | Diffusion可复现离线benchmark、统一encoder折叠与batch data-parallel编码、SM90 FP8 MegaMoE支持、Interleave策略（CP v2）、MiniMax-M3自定义快速all-reduce |
-| 📄 文档更新 | 约10% | 修正Cosmos3模型尺寸、Diffusion AR和PE指南 |
-| 🔧 重构/清理 | 约10% | 移除不可达的AOT头文件 |
-| 🖥️ 硬件支持 | 约20% | AMD ROCm AITER pin更新、MiniMax-M3 mxfp8块转换gfx950解锁、跳过ROCm上`test_update_weights_from_disk` |
-
----
-
-### 2. 关键变更点与项目方向关系
-
-- **DeepSeek V4 / SM90 FP8 MegaMoE** → 强化对大型MoE模型（如DeepSeek-V4）的兼容性与高性能推理，与SGLang支持最新开源模型的目标一致。
-- **Diffusion模型体系** → 新增benchmark、文档、统一编码器，表明项目从纯LLM推理向多模态（扩散模型）扩展，拓宽应用场景。
-- **AMD ROCm针对性优化** → 多提交聚焦AMD GPU（AITER pin、M3快速all-reduce、gfx950 unblock），体现多平台支持战略，提升在AMD生态的竞争力。
-- **上下文并行（CP v2）Interleave策略** → 优化分布式推理中序列切分方式，改善长序列处理效率，是模型并行的重要演进。
-- **Kernel级别优化** → 融合KV-cache（如非对称K/V头维度）、跳过不必要的树掩码填充，从底层提升推理吞吐。
-
----
-
-### 3. 对项目的影响和潜在意义
-
-- **稳定性提升**：修复多个关键Bug（模型加载、NPU形状错误、工具解析器）减少生产环境下的崩溃风险。
-- **性能增益显著**：
-  - Fast-path chain-style draft token → 加速多层级EAGLE推测解码。
-  - KV-cache融合 → 降低非对称K/V场景的显存带宽开销。
-  - Q8KV8 FP8稀疏预填充 → 结合量化与稀疏化，提升大模型首 token 延迟。
-- **生态扩展**：Diffusion benchmark与文档标准化测试流程，吸引更多多模态用户；SM90 FP8 MegaMoE部署DeepSeek-V4，巩固主流LLM支持。
-- **硬件兼容性**：AMD/Intel/NPU多后端同步更新，降低用户硬件门槛。
-
----
-
-### 4. 值得关注的技术点
-
-1
+分析生成失败
 
 ## 详细提交记录
+
+### [3a53c26](https://github.com/sgl-project/sglang/commit/3a53c26c27c8e2b705f2cc99fc81c53afa3921e1)
+
+- **作者**: Mohammad Miadh Angkad
+- **时间**: 2026-07-30T22:21:51Z
+- **提交信息**: [CI] Fix MoE compile and DSA indexer regressions (#32937)
+
+### [85f9998](https://github.com/sgl-project/sglang/commit/85f9998524a357d55e9f24f1021a5f7affe32f18)
+
+- **作者**: sglang-bot
+- **时间**: 2026-07-30T21:56:22Z
+- **提交信息**: docs: sync LMSYS SGLang blog cards (#32838)
+
+Co-authored-by: sglang-bot <sglang-bot@users.noreply.github.com>
+
+### [a6221d7](https://github.com/sgl-project/sglang/commit/a6221d776fe11d0e5859e1fa749f3a22c6c0c637)
+
+- **作者**: Trevor Morris
+- **时间**: 2026-07-30T21:32:03Z
+- **提交信息**: feat: Support nvidia/MiniMax-M3-NVFP4 (#31989)
+
+### [c4af6cf](https://github.com/sgl-project/sglang/commit/c4af6cf26397c16c1d3436d1f181c8d70790a16c)
+
+- **作者**: Henning Thieß
+- **时间**: 2026-07-30T21:30:26Z
+- **提交信息**: Qwen3.5-MoE: support modelopt_fp4 checkpoints that quantize attention (+ load baked FP8 KV scales) (#31220)
+
+### [5339450](https://github.com/sgl-project/sglang/commit/5339450ed46a323712409c5878fc03b3aa8e6846)
+
+- **作者**: saatwiknagpal
+- **时间**: 2026-07-30T21:10:06Z
+- **提交信息**: Support SGLANG_SIMULATE_ACC_LEN for DFLASH (#32595)
+
+### [3312645](https://github.com/sgl-project/sglang/commit/3312645a307453893a00778592f105581e3d1c3d)
+
+- **作者**: Rain Jiang
+- **时间**: 2026-07-30T19:46:19Z
+- **提交信息**: wire the rust server modules into lib, runtime, and tokenizer manager (#32877)
+
+### [047635e](https://github.com/sgl-project/sglang/commit/047635ee357debe0ae6bc1c03cb0b4fa15ba2148)
+
+- **作者**: Rain Jiang
+- **时间**: 2026-07-30T19:46:19Z
+- **提交信息**: add the rust server native api handlers and runtime threads (#32876)
+
+### [30643f8](https://github.com/sgl-project/sglang/commit/30643f88bc9145f41ae3c86fd60ada57b914e126)
+
+- **作者**: Rain Jiang
+- **时间**: 2026-07-30T19:46:19Z
+- **提交信息**: add the rust server api frame codec and http server entry (#32875)
+
+### [4facc0e](https://github.com/sgl-project/sglang/commit/4facc0e18a6c0ceffa840a034761d609fece641f)
+
+- **作者**: Rain Jiang
+- **时间**: 2026-07-30T19:46:18Z
+- **提交信息**: add the rust server ingress tests, guard, and submit modules (#32874)
+
+### [e2c65af](https://github.com/sgl-project/sglang/commit/e2c65af2299c17de11d66af09a8e1f5ba45f04a5)
+
+- **作者**: Rain Jiang
+- **时间**: 2026-07-30T19:46:17Z
+- **提交信息**: add the rust server ingress request validation and api server common types (#32873)
+
+### [922d6e5](https://github.com/sgl-project/sglang/commit/922d6e55427f702395958fe42cf0503a103aac60)
+
+- **作者**: Rain Jiang
+- **时间**: 2026-07-30T19:46:17Z
+- **提交信息**: add the rust server tokenizer, detokenizer, and egress modules (#32872)
+
+### [35f2e6a](https://github.com/sgl-project/sglang/commit/35f2e6ab58a20899d959e16da924b439ed6dabe2)
+
+- **作者**: Rain Jiang
+- **时间**: 2026-07-30T19:32:27Z
+- **提交信息**: update Cargo.lock for the rust sglang-server dependencies (#32871)
+
+### [04edadb](https://github.com/sgl-project/sglang/commit/04edadb34d774df2a58968e164802f43fb3f99d4)
+
+- **作者**: Ke Bao
+- **时间**: 2026-07-30T17:59:11Z
+- **提交信息**: Add Inkling-Small cookbook (#32951)
+
+Co-authored-by: Zijie Xia <zijie.xia@radixark.ai>
+Co-authored-by: Yanbin Jiang <jybsuper@gmail.com>
 
 ### [b61cb5f](https://github.com/sgl-project/sglang/commit/b61cb5f9de87f07770ba216fab4fba1e6496f4e3)
 
@@ -550,52 +898,143 @@ Co-authored-by: Claude Fable 5 <noreply@anthropic.com>
 
 - **描述**: A high-throughput and memory-efficient inference and serving engine for LLMs
 - **语言**: Python
-- **星标数**: 87700
-- **最后更新**: 2026-07-30T15:49:24Z
+- **星标数**: 87717
+- **最后更新**: 2026-07-30T22:26:03Z
 
 ## 提交统计
 
-- **昨日提交总数**: 16
-- **提交者数量**: 12
-- **主要提交者**: Wentao Ye, Martin Hickey, Julien Denize
+- **昨日提交总数**: 30
+- **提交者数量**: 20
+- **主要提交者**: Aaron Hao, Jiangyun Zhu, Wentao Ye
 
 ## AI分析总结
 
-### 1. 主要更新类型
-- **性能优化**：DSv4 kernel 移除冗余 full kernel、减少内存分配；融合 Transformer 残差加法和 RMSNorm。
-- **新模型支持**：引入 Kimi K3 模型，将 Deepseek V3.2 迁移到标准模型目录。
-- **功能增强**：强化学习（RL）的状态训练器进程间通信；统一引擎解析器支持推理和工具调用。
-- **Bug 修复与测试稳定性**：ROCm 上 FP8 RMSNorm 舍入问题；CI 中 speculator 内存回收和 LLM GC 检查稳定化。
-- **CI / 工具链**：FlexAttention 编译爆炸规避；MyPy 类型检查扩展；CI 授权与重试机制改进。
-- **文档完善**：Ray 集群信任模型及环境变量传播的安全说明。
-- **硬件适配**：XPU 跳过不稳定测试；CPU 内核版本升级。
-
-### 2. 关键变更点与项目方向的关系
-- **性能优化**（提交 1、2、6）直接服务于项目“fast & cheap”目标。DSv4 是 vLLM 核心推理后端之一，减少冗余 kernel 和内存拷贝显著提升吞吐、降低显存占用；算子融合（Residual Add + RMSNorm）是典型编译优化，减少 kernel launch 开销。
-- **新模型支持**（提交 8、12）扩展了项目支持的模型生态，符合“for everyone”愿景。Kimi K3 是国产大模型，Deepseek V3.2 是流行开源模型，标准化迁移便于用户使用。
-- **功能增强**（提交 5、7）服务于高级应用场景。RL 状态发送 IPC 是分布式强化学习训练的基础设施；统一解析器使推理和工具调用在同一引擎内完成，提升框架灵活性。
-- **稳定性与质量**（提交 4、9、13-15）确保项目在多种硬件和复杂场景下的可靠性，是生产可用的必要保障。
-- **安全文档**（提交 10）弥补了多节点部署时的安全漏洞说明，增强用户信任。
-
-### 3. 对项目的影响与潜在意义
-- **DSv4 性能提升 1.88x** 和 **448 MiB 显存节省** 直接降低推理成本，对大规模部署极具价值。
-- **Kimi K3 等新模型** 吸引更广泛社区用户，也验证了 vLLM 对新兴架构（如 MoE、MLA）的兼容能力。
-- **RL 通信基础设施** 推进了 vLLM 从纯推理向“训推一体”发展的战略一步，支撑在线强化学习等前沿需求。
-- **MyPy 类型检查** 扩展至测试目录，提升代码可维护性和正确性，降低长期维护风险。
-- **FlexAttention 编译优化** 解决了长上下文场景下编译时间过长的痛点，提升开发效率。
-
-### 4. 值得关注的技术点
-- **DSv4 双优化**：移除“full kernel”意味着设计了更细粒度的 kernel 拆分，避免不必要的计算；pp buffer 减少了跨设备流水线并行时的冗余分配，对多 GPU 场景通用。
-- **Transformer 融合技巧**：将残差加法与 RMSNorm 合并为单个 kernel，减少访存和启动延迟，是算子编译优化的典型实践。
-- **统一引擎解析器**：将推理与工具调用合并到同一解析流程，避免模型切换开销，适配 OpenAI Function Calling 等高级 API。
-- **ROCm FP8 舍入兼容**：gfx950 硬件特性差异导致测试失败，说明 vLLM 对 AMD GPU 的细节适配持续深入。
-
-### 5. 对项目发展的影响（结合 README 背景）
-- **性能持续优化** 使 vLLM 在“fast & cheap”赛道上保持领先，尤其 DSv4 优化直接提升最常用推理路径的效率。
-- **模型生态扩张** 吸引更多社区贡献（如 Kimi K3 由多方协作），巩固“for everyone”的承诺。
-- **训推一体化** 的 RL 通信基础设施暗示 vLLM 
+分析生成失败
 
 ## 详细提交记录
+
+### [7fe5312](https://github.com/vllm-project/vllm/commit/7fe5312332cbc4a974a54a8be2e87e280f1c5bfa)
+
+- **作者**: jcotant-inferact
+- **时间**: 2026-07-30T22:25:28Z
+- **提交信息**: [CI] Retire the v1 PR label rule, add mrv2 (#50475)
+
+Signed-off-by: Joe Cotant <joe@inferact.ai>
+Co-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+### [68fb303](https://github.com/vllm-project/vllm/commit/68fb303a4177f52b2a2795abe602031a6d330b83)
+
+- **作者**: Ryan Clark
+- **时间**: 2026-07-30T21:50:03Z
+- **提交信息**: [Bugfix] Preserve Marlin runtime tensor storage across weight reload (#48438)
+
+Signed-off-by: Ryan Clark <ryanclark2k@gmail.com>
+Co-authored-by: Claude Fable 5 <noreply@anthropic.com>
+
+### [e9096fc](https://github.com/vllm-project/vllm/commit/e9096fcb123181467a6fff5326fe8387d578760c)
+
+- **作者**: Bugen Zhao
+- **时间**: 2026-07-30T21:18:17Z
+- **提交信息**: [Rust Frontend] Improve startup failure and readiness logs (#50406)
+
+Signed-off-by: Bugen Zhao <i@bugenzhao.com>
+Co-authored-by: OpenAI Codex <codex@openai.com>
+
+### [45b60e3](https://github.com/vllm-project/vllm/commit/45b60e39140a5576505d986c37b382b3985a3d9e)
+
+- **作者**: Shangdi Yu
+- **时间**: 2026-07-30T20:37:52Z
+- **提交信息**: [Kernel][Helion] Disable unsafe B200 RMS reduction warp specialization (#50345)
+
+Signed-off-by: Shangdi Yu <shangdiy@meta.com>
+Co-authored-by: OpenAI Codex <noreply@openai.com>
+
+### [0eec856](https://github.com/vllm-project/vllm/commit/0eec856cc31cf9d9518b547c37a610d3f02ccddb)
+
+- **作者**: Michael Goin
+- **时间**: 2026-07-30T20:26:24Z
+- **提交信息**: Add Humming indexed-MoE regression test (#50468)
+
+Signed-off-by: mgoin <mgoin64@gmail.com>
+
+### [70bd109](https://github.com/vllm-project/vllm/commit/70bd10930bbb91af38fc243c53df4b94da80a8c9)
+
+- **作者**: Netanel Haber
+- **时间**: 2026-07-30T20:19:56Z
+- **提交信息**: [Quantization] Honor `--linear-backend` for ModelOpt W4A16 (#50273)
+
+Signed-off-by: Netanel Haber <58652339+netanel-haber@users.noreply.github.com>
+Co-authored-by: OpenAI Codex <noreply@openai.com>
+
+### [c27b080](https://github.com/vllm-project/vllm/commit/c27b080d262ee5966cf8d362d3a9d0cefd930908)
+
+- **作者**: Richard Zou
+- **时间**: 2026-07-30T19:50:02Z
+- **提交信息**: [compile] Fix fake kernel return dtype (#50444)
+
+Signed-off-by: Richard Zou <zou3519@gmail.com>
+Co-authored-by: Codex <noreply@openai.com>
+
+### [3f90c7e](https://github.com/vllm-project/vllm/commit/3f90c7e9e6d3f8e874756ada2dbcd353bf0803d9)
+
+- **作者**: Andreas Karatzas
+- **时间**: 2026-07-30T19:49:26Z
+- **提交信息**: [ROCm] Pass pointers to FlyDSL MoE kernels (#50378)
+
+Signed-off-by: Andreas Karatzas <akaratza@amd.com>
+
+### [bdc98bf](https://github.com/vllm-project/vllm/commit/bdc98bf5060db48f5844fa35f9ffe1608710ba51)
+
+- **作者**: Andreas Karatzas
+- **时间**: 2026-07-30T19:34:08Z
+- **提交信息**: [CI] Initialize fused gated RMSNorm weights (#50377)
+
+Signed-off-by: Andreas Karatzas <akaratza@amd.com>
+
+### [30e333c](https://github.com/vllm-project/vllm/commit/30e333ca5f0119385123e7e713462ffc7c8d7e45)
+
+- **作者**: Andreas Karatzas
+- **时间**: 2026-07-30T19:33:22Z
+- **提交信息**: [Bugfix] Shut down private Tensorizer engines (#49840)
+
+Signed-off-by: Andreas Karatzas <akaratza@amd.com>
+Co-authored-by: OpenAI Codex <noreply@openai.com>
+
+### [629a938](https://github.com/vllm-project/vllm/commit/629a938a928476a167efc6428bf2fbd43b1dc888)
+
+- **作者**: Bugen Zhao
+- **时间**: 2026-07-30T19:25:10Z
+- **提交信息**: [Frontend] Preserve bare Inkling text in Python and Rust parsers (#50403)
+
+Signed-off-by: Bugen Zhao <i@bugenzhao.com>
+
+### [12a34a6](https://github.com/vllm-project/vllm/commit/12a34a6bc794135e3b93dd721a6bdcdb1bf734b9)
+
+- **作者**: Mehmet Cagri
+- **时间**: 2026-07-30T18:59:52Z
+- **提交信息**: [ROCm][DSV4] B-preshuffle the attention fp8 projections (#46720)
+
+Signed-off-by: Mehmet Cagri Kaymak <mehmet.kaymak@amd.com>
+Co-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+Co-authored-by: Andreas Karatzas <akaratza@amd.com>
+
+### [5f8f728](https://github.com/vllm-project/vllm/commit/5f8f72866c4923fb06902cf60cf219a2340982e8)
+
+- **作者**: Kevin H. Luu
+- **时间**: 2026-07-30T18:48:09Z
+- **提交信息**: [Build] Fix CUDA release wheel builds (#50243)
+
+Signed-off-by: khluu <khluu000@gmail.com>
+Co-authored-by: Michael Goin <mgoin64@gmail.com>
+
+### [61cacd2](https://github.com/vllm-project/vllm/commit/61cacd272f5a95aa2a091d711ed91a4aa85522d5)
+
+- **作者**: Netanel Haber
+- **时间**: 2026-07-30T18:34:10Z
+- **提交信息**: [Bugfix][MoE] Write Humming results to the supplied output buffer (#50338)
+
+Signed-off-by: Netanel Haber <58652339+netanel-haber@users.noreply.github.com>
+Co-authored-by: OpenAI Codex <noreply@openai.com>
 
 ### [837eae6](https://github.com/vllm-project/vllm/commit/837eae64580c885101ee95b073aafb27a485e7ce)
 
@@ -772,35 +1211,28 @@ Co-authored-by: OpenAI Codex <noreply@openai.com>
 
 - **描述**: A framework for efficient model inference with omni-modality models
 - **语言**: Python
-- **星标数**: 5744
-- **最后更新**: 2026-07-30T15:57:19Z
+- **星标数**: 5748
+- **最后更新**: 2026-07-30T21:02:40Z
 
 ## 提交统计
 
 - **昨日提交总数**: 14
 - **提交者数量**: 13
-- **主要提交者**: Shenglei Fu, akshatvishu, Sy03
+- **主要提交者**: Alex Brooks, akshatvishu, SYLAR
 
 ## AI分析总结
 
-好的，以下是针对 vllm-project/vllm-omni 仓库昨日提交批次（共 14 个提交）的分析总结：
+### 主要更新类型
+- **Bug修复**：共8个（占57%），涉及扩散模型、音频生成、模型加载等边界条件与稳定性问题。
+- **重构**：共3个（占21%），聚焦部署配置统一与请求参数标准化。
+- **功能新增**：1个（分布式分层卸载，提升显存效率）。
+- **CI/构建**：1个（MiniCPM-o自动响应前输入提交）。
+- **模型支持**：1个（移除Flux2文本编码器输出层硬编码，添加Cosmos3-Edge预设）。
 
-### 1. 主要更新类型
-- **Bug 修复**：8 个（覆盖扩散、音频、TTS 等多个模态）
-- **重构**：3 个（测试配置迁移、扩散请求参数规范化）
-- **功能新增**：1 个（分布式逐层卸载 + DP 多并发）
-- **模型改进**：1 个（移除 Flux2 硬编码）
-- **CI/构建**：1 个（MiniCPM-o 自动响应行为调整）
-
-### 2. 关键变更点及其与项目方向的关系
-- **扩散模型健壮性强化**  
-  - 修复 CFG companion bundle 不完整时的调度问题、添加 CPU LAPACK 回退、支持 `HF_HUB_OFFLINE`、修正 MagCache residual 应用方式、增加 Cosmos3-Edge 预设。  
-  → 直接提升多模态（尤其是图像/视频生成）服务的稳定性和部署灵活性，符合“fast, cheap, easy”目标。
-- **音频/TTS 稳定性修复**  
-  - 修复 `active_stream_window` 导致音频静默、Ming-omni-tts 权重加载失败、Qwen3-TTS 空 payload 问题。  
-  → 保障语音生成场景的可靠性，覆盖更多 TTS 模型（Qwen3、Ming）。
-- **大型模型分布式优化**  
-  - 新增分布式逐层卸载，支持 DP
+### 关键变更点与项目方向的关系
+- **扩散模型稳定性**：修复CFG bundle不完整分发、缺少CPU LAPACK降级、MagCache跳过步应用、HF_HUB_OFFLINE兼容性等问题，直接支撑项目“**easy & fast**”的多模态服务目标，减少用户部署障碍。
+- **音频生成质量**：解决流式音频卡顿、TTS权重加载遗漏、Qwen3-TTS占位帧输出问题，提升语音模态的可靠性。
+- **架构统一化**：重构Step-Audio2和Qwen3 Omni thinker的部署配置，并标准化扩散请求额外参数，有助于项目“**cheap**”的规模化
 
 ## 详细提交记录
 
