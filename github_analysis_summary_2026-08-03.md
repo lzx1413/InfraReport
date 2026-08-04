@@ -7,156 +7,139 @@
 ## 总体统计
 
 - **活跃仓库数**: 8/12
-- **总提交数**: 69
-- **平均提交/仓库**: 5.8
+- **总提交数**: 79
+- **平均提交/仓库**: 6.6
 - **有README的仓库**: 12/12
 
 ## AI综合分析
 
-# 📊 开源项目每日更新报告
+# 📊 开源AI推理框架每日更新报告
 
-**报告日期**：2025年X月X日 | **覆盖时段**：昨日提交
+**报告日期**: 2025年X月X日 | **覆盖时段**: 昨日提交
 
 ---
 
 ## 一、总体概览
 
-| 指标 | 数量 |
+| 指标 | 数值 |
 |------|------|
-| 活跃仓库 | 8 |
-| 总提交数 | 69 |
-| 平均每仓提交 | 8.6 |
+| 活跃仓库数 | 8 |
+| 总提交数 | **79** |
+| 平均每仓提交 | ~10 |
 
-**活跃度排名**：vllm (33) > sglang (10) > flashinfer (7) > DiffSynth-Studio (6) > diffusers (5) > vllm-omni (4) > LightX2V (3) > FastVideo (1)
+**一句话总结**: 视频生成推理、多模态模型支持与MoE内核优化成为昨日三大技术主线。
 
 ---
 
-## 二、各仓库更新要点
+## 二、仓库更新要点
 
-### 🚀 vllm-project/vllm（33 commits）— 高活跃度
+### 🎬 视频生成与多模态推理
 
-**项目定位**：高性能LLM推理与服务引擎
+**ModelTC/LightX2V** (3 commits) — 轻量视频生成推理框架
+- **公共模块复用**: 统一Wan、Qwen-Image和InfiniteTalk的公共代码路径 (#1324)
+- **NVFP4优化**: 为Wan模型增加split-N workaround，提升FFN层性能 (#1306)
+- **新模型接入**: 支持Bagel和SenseNova-Vision的server API调用 (#1323)
+- 📌 *分析*: 框架正快速扩展模型覆盖面，同时通过公共模块复用降低维护成本
 
-- **会话管理**：session ID 贯穿请求全链路（#48048），为多轮对话和状态管理提供基础设施
-- **模型执行器**：修复 Mamba 状态更新中 int32 映射问题（#50327）
-- **ROCm 支持**：在 GFX120x 上启用 AITER 和 FP8 推理（#43615），扩展 AMD 平台能力
-- **其他**：30 个提交涵盖性能优化、bug 修复和功能增强
+**vllm-project/vllm-omni** (4 commits) — 多模态LLM推理
+- **模型支持**: 新增MiniMax H3 T2VA精度测试 (#5709)
+- **接口清理**: 移除遗留的`--stage-configs-path`参数 (#5647)
+- 📌 *分析*: 项目处于接口规范化阶段，为稳定API做准备
 
-### ⚡️ sgl-project/sglang（10 commits）— 性能优化
+**vllm-project/vllm** (37 commits) — 核心推理引擎
+- **内核优化**: 扩展CuTe DSL瘦GEMM以支持GLM-5.2 (#49791)
+- **Bug修复**: 修复Qwen3-Omni视频无音轨时崩溃 (#48420)
+- **混合推理**: 修复MRv2对齐前缀缓存中的跨块竞争 (#50432)
+- 📌 *分析*: 大模型推理的稳定性与性能优化持续深化
 
-**项目定位**：快速推理框架，聚焦结构化生成
+### ⚡ 推理加速内核
 
-- **调度优化**：限制 prefill delayer 全分支延迟，并衰减 max_prefill_bs 高水位（#32880），提升调度稳定性
-- **文档完善**：MiniMax-H3 增加 H200 Ulysses4 vs TP2+Ulysses2 拓扑对比数据（#33398）
-- **CI 改进**：跳过缺失的内联测试套件（#33410）
+**flashinfer-ai/flashinfer** (8 commits) — 高性能推理内核库
+- **FP8支持**: rmsnorm_quant支持FP8 E5M2输出 (#4202)
+- **MoE内核同步**: SM12x W4A16和NVFP4 fused-MoE内核同步至b12x HEAD (#4255, #4285)
+- 📌 *分析*: 专注Hopper/Blackwell架构的MoE推理优化，NVFP4成为重点方向
 
-### 🔧 flashinfer-ai/flashinfer（7 commits）— 内核优化
+**sgl-project/sglang** (15 commits) — 高性能推理框架
+- **性能修复**: 捕获合法的multi-request prefill CUDA graph批次 (#30206)
+- **文档重构**: `docs_new/`重命名为`docs/` (#32123)
+- **CI清理**: 移除遮蔽checkout的孤儿site-packages (#33441)
+- 📌 *分析*: 项目处于文档规范化和CI基础设施优化阶段
 
-**项目定位**：LLM 推理加速库，提供高性能内核
+### 🎨 生成模型与工具链
 
-- **MoE 内核同步**：SM12x W4A16 fused MoE 系列同步至 b12x HEAD（#4255）
-- **NVFP4 内核**：SM12x NVFP4 fused-MoE 内核同步（#4285），支持新一代精度格式
-- **测试修复**：修复高 SM GPU 上 split-K 启发式期望值（#4303）
+**huggingface/diffusers** (5 commits) — 扩散模型工具库
+- **自动化**: 新模型请求自动回复远程代码指引 (#14343)
+- **测试重构**: Flux2 Klein KV pipeline测试迁移至新mixin结构 (#14344, #14336)
+- 📌 *分析*: 持续优化Flux2系列测试架构，提升代码可维护性
 
-### 🎨 huggingface/diffusers（5 commits）— 生态建设
+**modelscope/DiffSynth-Studio** (6 commits) — 创意视频合成
+- **量化升级**: 支持量化+磁盘卸载 (#1554)
+- **示例重构**: 重构Minimax示例 (#1555)
+- 📌 *分析*: 降低显存占用，提升大模型在消费级硬件上的可用性
 
-**项目定位**：扩散模型工具库
-
-- **自动化响应**：新模型请求自动回复远程代码指引（#14343）
-- **测试重构**：flux2 klein KV pipeline 测试迁移至新 mixin 结构（#14344, #14336）
-
-### 🎬 ModelTC/LightX2V（3 commits）— 视频生成推理
-
-**项目定位**：轻量视频生成推理框架
-
-- **代码复用**：wan、qwen-image 和 InfiniteTalk 公共模块复用（#1324）
-- **NVFP4 支持**：Wan FFN split-N workaround（#1306），适配新精度格式
-- **新模型接入**：支持 Bagel 和 SenseNova-Vision 服务器 API（#1323）
-
-### 🧠 vllm-project/vllm-omni（4 commits）— 多模态扩展
-
-**项目定位**：vLLM 的多模态/全模态扩展
-
-- **模型支持**：MiniMax H3 T2VA 精度测试（#5709）
-- **CLI 清理**：移除 legacy `--stage-configs-path` 参数（#5647）
-- **社区维护**：更新微信社区二维码（#5701）
-
-### 🎭 modelscope/DiffSynth-Studio（6 commits）— 创作工具
-
-**项目定位**：创意与艺术表达的开源 Diffusion 系统
-
-- **量化升级**：支持量化与磁盘卸载（#1554），降低显存占用
-- **示例重构**：重构 Minimax 示例（#1555）
-- **Bug 修复**：多项问题修复（#1553）
-
-### ⚡️ hao-ai-lab/FastVideo（1 commit）— 视频生成加速
-
-**项目定位**：快速视频生成框架
-
-- **Bug 修复**：GB200 使用独立 SSIM 参考文件夹，避免与 B200 混淆（#1676）
+**hao-ai-lab/FastVideo** (1 commit) — 快速视频生成
+- **Bug修复**: GB200使用独立SSIM参考文件夹，避免与B200混淆 (#1676)
+- 📌 *分析*: 针对新硬件平台的基础设施适配
 
 ---
 
 ## 三、技术趋势分析
 
-### 1. **NVFP4 精度格式成为焦点**
-   - flashinfer 同步 NVFP4 MoE 内核
-   - LightX2V 增加 Wan FFN split-N workaround
-   - vllm 在 ROCm 平台启用 FP8 推理
-   - **趋势**：4-bit 浮点精度正从训练走向推理优化，成为降低显存和提升吞吐的关键路径
+### 🔥 热点技术栈
 
-### 2. **MoE（混合专家）架构持续优化**
-   - flashinfer 两个提交专门针对 MoE 内核
-   - 结合 NVFP4 精度，MoE + 低精度组合成为大模型推理的主流方向
+| 技术方向 | 涉及仓库 | 热度 |
+|----------|----------|------|
+| **NVFP4量化推理** | flashinfer, LightX2V | 🔥🔥🔥 |
+| **MoE内核优化** | flashinfer, vllm | 🔥🔥🔥 |
+| **多模态模型支持** | vllm, vllm-omni, LightX2V | 🔥🔥 |
+| **FP8精度格式** | flashinfer | 🔥🔥 |
+| **视频生成推理** | LightX2V, FastVideo, DiffSynth | 🔥🔥 |
 
-### 3. **多模态与视频生成加速**
-   - vllm-omni 增加 MiniMax H3 T2VA 支持
-   - LightX2V 接入新视频模型
-   - DiffSynth-Studio 优化量化降低资源门槛
-   - **趋势**：视频生成推理正在从"能跑"走向"高效跑"
+### 📈 方向变化
 
-### 4. **调度与内存管理精细化**
-   - sglang 优化 prefill 调度策略
-   - DiffSynth-Studio 支持磁盘卸载
-   - **趋势**：推理框架开始精细化控制内存和调度，追求极致吞吐
-
-### 5. **测试与工程化建设**
-   - diffusers 重构测试结构
-   - sglang 改进 CI 配置
-   - flashinfer 修复测试期望值
-   - **趋势**：项目成熟度提升，工程化建设成为重点
+1. **视频生成推理框架进入快速迭代期**: LightX2V和FastVideo活跃度上升，模型接入速度加快
+2. **NVFP4成为下一代量化标准**: 多个仓库同步推进NVFP4内核优化
+3. **多模态推理稳定性成为焦点**: vllm集中修复视频/音频相关bug
+4. **测试基础设施重构**: diffusers和sglang都在重构测试架构
 
 ---
 
 ## 四、值得关注的更新
 
-| 更新 | 仓库 | 影响 |
-|------|------|------|
-| **session ID 贯穿请求链路** | vllm | 为多轮对话、状态管理和服务编排奠定基础 |
-| **NVFP4 MoE 内核同步** | flashinfer | 新一代精度格式在 MoE 架构上的推理加速 |
-| **prefill 调度优化** | sglang | 提升高并发场景下的调度稳定性和吞吐 |
-| **量化 + 磁盘卸载** | DiffSynth-Studio | 降低视频生成模型的硬件门槛 |
-| **ROCm FP8 推理** | vllm | AMD 平台能力增强，扩展硬件生态 |
+### ⭐ 高影响力
+
+1. **flashinfer NVFP4 fused-MoE内核同步** (#4285) — 直接影响Blackwell架构上的MoE模型推理性能
+2. **vllm GLM-5.2瘦GEMM支持** (#49791) — 新模型适配，可能影响国产模型生态
+3. **LightX2V公共模块复用** (#1324) — 架构优化，降低多模型维护成本
+
+### 🔧 稳定性修复
+
+4. **vllm Qwen3-Omni视频崩溃修复** (#48420) — 多模态推理关键bug
+5. **vllm MRv2前缀缓存竞争修复** (#50432) — 混合推理一致性保障
+
+### 🏗️ 工程效率
+
+6. **sglang文档目录重构** (#32123) — 文档规范化，提升开发者体验
+7. **diffusers Flux2测试重构** (#14344) — 测试架构现代化
 
 ---
 
 ## 五、建议关注与潜在影响
 
-### 🔍 重点关注
+| 项目 | 关注理由 | 潜在影响 |
+|------|----------|----------|
+| **flashinfer** | NVFP4 MoE内核持续优化 | Blackwell GPU上MoE推理性能提升，可能成为行业标准 |
+| **LightX2V** | 视频生成推理框架快速迭代 | 视频生成模型部署门槛降低，加速应用落地 |
+| **vllm** | 37个提交，覆盖内核到bugfix | 核心推理引擎稳定性提升，多模态支持增强 |
+| **DiffSynth-Studio** | 量化+磁盘卸载 | 消费级显卡运行大模型成为可能 |
 
-1. **vllm** — 33 个提交的高活跃度，持续强化推理引擎核心能力，建议跟踪 session ID 功能后续演进
-2. **flashinfer** — NVFP4 MoE 内核的持续优化，可能成为低精度推理的性能标杆
-3. **sglang** — 调度策略优化反映其在生产环境中的实际需求，值得关注性能数据
-
-### 💡 潜在技术影响
-
-- **NVFP4 生态成熟**：多个项目同步支持，预示 4-bit 推理将在近期成为主流配置
-- **视频生成推理加速**：LightX2V、FastVideo、DiffSynth-Studio 多线推进，视频生成有望在消费级硬件上运行
-- **多模态统一推理**：vllm-omni 持续扩展模型支持，全模态推理框架渐成雏形
+### ⚠️ 风险提示
+- **sglang CI清理**可能影响开发流程，建议关注后续稳定性
+- **vllm-omni接口清理**可能破坏现有API兼容性
 
 ---
 
-*报告生成时间：2025年X月X日 | 数据来源：GitHub 提交记录*
+*报告生成完毕 — 建议重点关注flashinfer的NVFP4进展和vllm的多模态稳定性修复*
 
 ## 仓库详情
 
@@ -173,11 +156,9 @@
 
 ### [flashinfer-ai/flashinfer](https://github.com/flashinfer-ai/flashinfer)
 
-- **昨日提交**: 7
+- **昨日提交**: 8
 - **项目简介**: 已获取README摘要 (513 字符)
-- **示例提交**: feat(moe): sync SM12x W4A16 fused MoE family to b12x HEAD (#4255)
-
-## 📌 Descript...
+- **示例提交**: fix: support fp8 e5m2 output in rmsnorm_quant and fused_add_rmsnorm_quant (#4202...
 
 ### [vllm-project/vllm-omni](https://github.com/vllm-project/vllm-omni)
 
@@ -189,9 +170,9 @@ Signed-off-by: david6666666 <...
 
 ### [sgl-project/sglang](https://github.com/sgl-project/sglang)
 
-- **昨日提交**: 10
+- **昨日提交**: 15
 - **项目简介**: 已获取README摘要 (508 字符)
-- **示例提交**: Bound prefill delayer all-branch delay and decay the max_prefill_bs high-waterma...
+- **示例提交**: fix(server): capture legal multi-request prefill CUDA graph batches (#30206)...
 
 ### [vipshop/cache-dit](https://github.com/vipshop/cache-dit)
 
@@ -208,11 +189,11 @@ Signed-off-by: david6666666 <...
 
 ### [vllm-project/vllm](https://github.com/vllm-project/vllm)
 
-- **昨日提交**: 33
+- **昨日提交**: 37
 - **项目简介**: 已获取README摘要 (514 字符)
-- **示例提交**: feat(frontend): session id plumbing into requests (#48048)
+- **示例提交**: [Kernel] Extend CuTe DSL skinny GEMM to GLM-5.2 (#49791)
 
-Signed-off-by: Karen...
+Signed-off-by: Peiyuan...
 
 ### [aigc-apps/VideoX-Fun](https://github.com/aigc-apps/VideoX-Fun)
 
