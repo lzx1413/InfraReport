@@ -1,82 +1,81 @@
 # GitHub Stars 每日更新报告
 
-**报告日期**: 2026-10-15
-**监控日期**: 2026-10-14
+**报告日期**: 2026-10-21
+**监控日期**: 2026-10-20
 **监控仓库数**: 12
 
 ## 总体统计
 
-- **活跃仓库数**: 8/12
-- **总提交数**: 153
-- **平均提交/仓库**: 12.8
+- **活跃仓库数**: 10/12
+- **总提交数**: 216
+- **平均提交/仓库**: 18.0
 - **有README的仓库**: 12/12
 
 ## AI综合分析
 
-综合分析生成失败: Response ended prematurely
+综合分析生成失败: 400 Client Error: Bad Request for url: https://token-plan-cn.xiaomimimo.com/v1/chat/completions
 
 ## 仓库详情
 
 ### [ModelTC/LightX2V](https://github.com/ModelTC/LightX2V)
 
-- **昨日提交**: 0
+- **昨日提交**: 2
 - **项目简介**: 已获取README摘要 (503 字符)
+- **示例提交**: Optimize InfiniteTalk inference on L40S (#1641)
+
+Add a tuned L40S configuration,...
 
 ### [ByteDance-Seed/VeOmni](https://github.com/ByteDance-Seed/VeOmni)
 
-- **昨日提交**: 1
+- **昨日提交**: 7
 - **项目简介**: 已获取README摘要 (512 字符)
-- **示例提交**: [model, trainer] feat: support selective recomputation (#1166)
+- **示例提交**: [parallel, ops] fix: align DeepSeek V4 expert parallel numerics (#1199)
 
-Co-authored-by: ...
+Signed-...
 
 ### [flashinfer-ai/flashinfer](https://github.com/flashinfer-ai/flashinfer)
 
-- **昨日提交**: 20
+- **昨日提交**: 51
 - **项目简介**: 已获取README摘要 (513 字符)
-- **示例提交**: perf(moe): optimize sparse SM107 MegaMoE decode (#6447)
-
-<!-- .github/pull_reque...
+- **示例提交**: perf(cake_fused_qk_rope_append): converge the BF16 fused QK RMSNorm + NeoX RoPE ...
 
 ### [vllm-project/vllm-omni](https://github.com/vllm-project/vllm-omni)
 
-- **昨日提交**: 20
+- **昨日提交**: 19
 - **项目简介**: 已获取README摘要 (513 字符)
-- **示例提交**: [CI/Build][ROCm] Mark reliability fault tests for AMD GPU (#8944)
+- **示例提交**: [CI/Build] Align Intel CI pin with vLLM v0.32.0 (#9131)
 
-Signed-off-by...
+Signed-off-by: Joshna-M...
 
 ### [sgl-project/sglang](https://github.com/sgl-project/sglang)
 
-- **昨日提交**: 30
+- **昨日提交**: 59
 - **项目简介**: 已获取README摘要 (509 字符)
-- **示例提交**: [Bug] Fix multi-tokenizer BatchEmbeddingOutput repack dropping fields (#31892)
-
-...
+- **示例提交**: [Perf] mamba: Copy tracked decode states at HBM bandwidth in one persistent laun...
 
 ### [vipshop/cache-dit](https://github.com/vipshop/cache-dit)
 
-- **昨日提交**: 2
+- **昨日提交**: 1
 - **项目简介**: 已获取README摘要 (509 字符)
-- **示例提交**: Update README.md...
+- **示例提交**: Support Qwen-Image 2.1 (cache, TP, CP, TE-P, VAE-P) (#1128)
+
+* Support Qwen-Imag...
 
 ### [huggingface/diffusers](https://github.com/huggingface/diffusers)
 
 - **昨日提交**: 5
 - **项目简介**: 已获取README摘要 (512 字符)
-- **示例提交**: ci: move to python 3.11. (#15030)
+- **示例提交**: Add RFD4-Proteina (#15088)
 
-* move to python 3.11.
+* Add RFD4-Proteina
 
-* update setup.py alo...
+Adds the RFD4-Proteina pipeline...
 
 ### [vllm-project/vllm](https://github.com/vllm-project/vllm)
 
-- **昨日提交**: 74
+- **昨日提交**: 62
 - **项目简介**: 已获取README摘要 (514 字符)
-- **示例提交**: [ROCm] Bump AITER to v0.1.25 and relax the DSv4.1 mono MoE tolerance (#61697)
-
-S...
+- **示例提交**: [Frontend] DiffusionGemma joint reads on /v1/systemone and /v1/decisions, images...
 
 ### [aigc-apps/VideoX-Fun](https://github.com/aigc-apps/VideoX-Fun)
 
@@ -85,10 +84,13 @@ S...
 
 ### [modelscope/DiffSynth-Studio](https://github.com/modelscope/DiffSynth-Studio)
 
-- **昨日提交**: 1
+- **昨日提交**: 5
 - **项目简介**: 已获取README摘要 (505 字符)
-- **示例提交**: Fix LTX-2.5 split training, add FL2AV training and INT8 ConvRot scripts (#1752)
-...
+- **示例提交**: fix compile for cpu offload (#1772)
+
+* fix compile for cpu offload
+
+* fix cycle ...
 
 ### [modelscope/DiffSynth-Engine](https://github.com/modelscope/DiffSynth-Engine)
 
@@ -97,5 +99,6 @@ S...
 
 ### [hao-ai-lab/FastVideo](https://github.com/hao-ai-lab/FastVideo)
 
-- **昨日提交**: 0
+- **昨日提交**: 5
 - **项目简介**: 已获取README摘要 (507 字符)
+- **示例提交**: [feat] Add H3 PDD/DMPDD training and packed Ref2VA preprocessing (#1984)...
