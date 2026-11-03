@@ -67,7 +67,28 @@
 
 ## AI分析总结
 
-分析失败: DeepSeek returned an empty response
+## 提交分析总结
+
+### 1. 主要更新类型
+- **功能新增**：为 LightX2V 训练模块引入量化感知训练（QAT）能力，属于框架能力的重要扩展。
+
+### 2. 关键变更点及其与项目整体方向的关系
+- **新增 QAT 支持**：为支持的视频生成模型添加 INT4 和 NVFP4 权重量化，以及可选的激活量化，直接回应了项目"轻量化视频生成推理框架"的核心定位——通过量化在保持生成质量的同时降低推理开销。
+- **新增 Wan 2.1 T2V 1.3B DMD 训练配置**：提供开箱即用的蒸馏训练配置和分布式训练启动选项，降低了用户上手训练的门槛。
+- **训练鲁棒性增强**：训练前校验量化设置，检查点保存量化配置并在恢复训练时进行一致性校验，防止配置不匹配导致的隐性错误。
+
+### 3. 对项目的影响和潜在意义
+- 将项目的量化能力从**推理侧**延伸到了**训练侧**，形成了"训练时量化感知 → 推理时量化加速"的完整闭环，显著增强了框架的端到端轻量化能力。
+- 量化配置校验与检查点一致性保护机制提升了训练流程的可靠性，对长时间分布式训练场景尤为重要。
+- Wan 2.1 配置的提供进一步丰富了项目对主流视频生成模型的支持生态。
+
+### 4. 值得关注的技术点
+- **NVFP4 量化**：采用 NVIDIA 新一代 FP4 格式，说明项目紧跟最新硬件（如 Blackwell 架构）的量化趋势。
+- **INT4 + NVFP4 双精度路径**：兼顾通用性和特定硬件的最优性能，体现了框架的灵活性。
+- **量化感知训练（QAT）与 DMD 蒸馏的结合**：训练配置中同时涉及量化和 DMD（Distribution Matching Distillation）技术，这种组合是当前高效视频生成的前沿方向。
+
+### 5. 对项目发展方向的影响
+LightX2V 的愿景是"轻量视频生成推理框架"，本次提交表明项目正在从单纯的推理优化工具演进为**涵盖训练与推理的全链路轻量化平台**。通过 QAT 让用户可以在训练阶段就获得量化友好的模型权重，避免了后训练量化（PTQ）常见的精度损失问题，使最终部署的模型在速度与质量之间取得更优平衡。这一演进与 README 中强调的"Light"理念高度一致，也标志着项目在实用化和工业化部署方向上迈出了关键一步，为后续支持更多模型和硬件平台的量化训练奠定了基础。
 
 ## 详细提交记录
 
@@ -135,37 +156,36 @@ differ from the current configuration.
 - **描述**: FlashInfer: Kernel Library for LLM Serving
 - **语言**: Cuda
 - **星标数**: 6841
-- **最后更新**: 2026-11-03T01:49:59Z
+- **最后更新**: 2026-11-03T03:10:30Z
 
 ## 提交统计
 
 - **昨日提交总数**: 97
 - **提交者数量**: 15
-- **主要提交者**: Wookje Han, eigen, Alex Yang
+- **主要提交者**: danisereb, Brian K. Ryu, adenzhou1350
 
 ## AI分析总结
 
-# FlashInfer 昨日提交总结
+# FlashInfer 昨日提交合并总结
 
 ## 一、主要更新
-昨日 97 个提交以性能优化为绝对主体，辅以功能新增、正确性修复与工程治理。优化覆盖 H100、B200/GB200/GB300（sm_100a/103a）与 Rubin R200（sm_107a）全系硬件，涉及 MoE、量化、MLA decode、分页 FMHA，以及快速扩张的"cake"训练内核家族（KDA/DSA indexer、mHC、GDN、LM-head loss、causal conv1d、dense GEMM、RMSNorm）。功能新增包括 PrimTS FMHA 支持 MXFP8 Q/K、融合 MoE 支持 ClampedRelu2 激活、量化新增原生 CUDA 后端、KCP 包新增 in-kernel Q/K L2 norm，以及配合 Lean 形式化证明的 mm_bf16 批不变模式；API 层公开了 FP4 routed MoE 的 routing_metadata 参数、chunked LM-head 温度支持与 raw forget-gate 输入。
+昨日 97 个提交以性能优化为绝对主导，辅以功能新增、Bug/可移植性修复与工程治理，无大规模重构，项目处于内核精细打磨与稳定性巩固阶段。优化覆盖 cake 训练内核家族（softmax、rmsnorm、mHC、GDN、KDA、dense projection GEMM/wgrad、LM-head+loss、log-prob 反向、router GEMM、causal conv1d 等）、MoE 全链条（mHC、MegaMoE v3、mxfp8 EP16、DSv4 稀疏 MLA、NVFP4 routed MoE、CuTe-DSL 融合 MoE）、tinygemm、warp_decode、prims 滑窗掩码、AttnRes 及量化原语。功能新增包括 QK-MXFP8 稠密上下文 FMHA、`mm_bf16(batch_invariant=True)` 批不变模式、SM100 上 Kimi-K3 NVFP4 融合 MoE、TP2/4/8 融合 FP8 GEMM+all-reduce、`per_token_group_quant_8bit` 的 CUDA 半 warp 后端，以及 chunked_lm_head_det_logprob 标量/逐 token 温度、KCP 原始 forget-gate 输入、FP4 routed MoE 路由元数据公开 API。修复涉及 cake_fmha 小 M 解码 SM 分区切分错误、tinygemm2 int32 溢出、MNNVL 通信 cluster barrier 与 mbarrier verdict_ack 竞态、张量内存分配挂起、FP16 次正规数舍入、Windows ARM64 JIT 分发、零 GPU CI、RMSNorm 权重梯度精度边界等。文档与 CODEOWNERS（新增 Quantization 归属）同步更新。
 
 ## 二、关键变更
-**微架构级提速**：以单条 bmsk.clamp 替代逐元素掩码构建；NVFP4 单 token decode 用 cluster 合并 split-K 提速 1.077x；per_token_group_quant_8bit 新增寄存器常驻 CUDA 后端，H100 上几何平均 1.6–1.7x（33/33 形状全胜）；MXFP8 权重单次读取生成双布局，1.37–1.39x；tinygemm2 路由窗口扩至 8111/9044 个形状，中位加速 1.03–4.32x；R200 MegaMoE EP16 的 grid 由 144 增至 192 CTA，达 1.21–1.25x；kimi_k3_attn_res 在 B200/B300/GB300 上 71 个形状切至 token-queue 持久化程序；MoE 的 finalize+allreduce+RMSNorm 融合核新增 two-shot early 程序，geomean 1.039x；AlphaMoE W8A8 达 1.099x，warp_decode 对比 trtllm-gen 几何均值 1.082x。
-
-**调度与主机端**：按架构、形状、SM 数（208/212）三层选择程序变体，去除 grid barrier、采用双流双布局单发射、PDL 启动波段与 tail slack 调度下放；以一次性 plan 替代手工调优，LM-head 反向跳过零梯度行提速 1.9x 且保持 CUDA Graph 可捕获。
-
-**训练侧扩展**：KCP GDN、KDA context-parallel、mHC 反向（B200 最高 1.48x）、TwoSum 补偿归约与 checkpoint hand-off 持续推进，chunked LM-head+loss 训练后端首次完整交付 sm_107a 构建，较 FLA chunk_kda 领先 1.8–9.7x；确定性上下文并行仅修改 host 侧 segment plan、内核机器码不变即提速 20–28%。
-
-**修复**：green context 下 split 规划挂起、tinygemm2 int32 溢出、确定性 GEMM 集群屏障死锁、MNNVL 全归约 RMSNorm 竞态引发的 Xid 13 崩溃（vLLM B200 生产必崩）、FP16 subnormal 舍入缺陷、DSA indexer 共享内存竞态、verdict word 过早覆盖（verdict_ack 双到达 mbarrier）、Windows ARM64 nvcc 编译失败（NVBug 7003339）。
-
-**治理**：补全 CODEOWNERS 规则（含量化模块归属），引入 A/B 双运行位等价断言与三臂 benchmark。
+- **微架构级提速**：更短指令链、evict-first 缓存提示、移除 grid barrier、TMA bulk store、位掩码替代向量比较、依赖启动提前触发、双流零同步拼接、merge 入口触发下游注意力启动、节拍化环形缓冲区填充。
+- **融合内核**：MoE quant+route 单 launch、双布局单次读写（MXFP8 权重提速 1.39x）、moe_finalize_allreduce_fusion two-shot early 程序消除控制字依赖、RMSNorm+SiLU+Gate 反向融合、FA2 与量化后端融合。
+- **调度与程序路由**：按 SM 数路由、O(1) 主机规则预测 DV-split、按 token 阈值切换确定性/非确定性程序、row_cost_lpt 改 small_one 等纯调度变更（机器码不变即获收益）；tinygemm_bf16 在 H100 的 wgmma 路由窗口由 5759 扩至 8111（基于 7342 形状、3% 门槛验证）；MegaMoE EP16 扩至 192 CTA；PDL 窗口按架构与 edge 分段；动态共享内存占位将每 SM 常驻 CTA 由 3 降至 2 换取 1.03–1.09x。
+- **同步与存储削减**：寄存器驻留 half-warp 量化（H100 提速 1.6–1.7x）、共享内存缓存 expert row offsets、softmax 全局单次 max+rescale、bitonic merge 替代全排序、共享内存合并 split-K 归约、token-queue 持久化程序（AttnRes 程序库由 244 精简至 239）。
+- **设备端智能**：零梯度行设备端跳过（log-prob 反向近 2x）、limit 张量设备读取、CUDA-graph 兼容的路由计划缓存与参数绑定复用，削减 host-bound 开销。
 
 ## 三、项目影响
-FlashInfer 正从推理内核库演进为"推理 + 训练 + 多硬件"全栈平台：训练侧 Cake 家族已覆盖投影 GEMM、MoE、GDN、mHC、LM-head loss，端到端 EP8 训练提升约 1–2%，辅助算子相对 torch.compile/Liger/FlashQLA 最高领先 3.2 倍；确定性与非确定性双包架构（同一 facade 以 deterministic 标志切换）提供"可复现与速度可切换"的工程化选择。低精度（MXFP8/NVFP4）、确定性 RL 位对齐、分区化部署成为新增长点；生产级修复直接提升 vLLM 等下游框架稳定性，Windows ARM64 支持拓宽部署边界，逐形状重测与 CI 门禁构成的回归体系为 Kimi-K3、MiniMax-M3、Qwen GDN 等新模型提供了模板化的内核生产流程。
+单项加速普遍 1.005x–4.3x，个别达 9.7 倍（KDA）；MegaMoE 在 R200 提速 1.21–1.22x、GDN 训练约 20–30%、decode FC2 相对 trtllm-gen 达 1.082x，多数输出位级一致。硬件从 H100（sm_90a）覆盖至 B200/GB200（sm_100a）、GB300（sm_103a）与 212-SM 的 Vera Rubin R200（sm_107a），抢占新硬件先机。批不变模式经 Lean 形式化验证，拓宽量化推理与 RL 位级对齐用户群；训练侧（KCP、mHC、MoE 反向、上下文并行）深化，标志项目由纯推理库向训练+推理全栈演进。vLLM 在 B200 崩溃阻塞解除，生产可靠性显著提升；路由元数据 API 化支持流水线重叠，利于大规模 EP 部署。
 
-## 四、技术关注点
-位级一致是多数优化的硬约束，Lean 形式化证明为多实现一致背书；零同步设计（设备侧校验、不回读主机）保障 CUDA Graph 捕获；evict-first TMA 缓存提示体现对 L2 行为的深入调优；CGA 中 barrier arrive/wait 分离模式反复引发同步缺陷，是值得沉淀的教训；A/A 噪声带、CI95 报告与"位等价 + ≥3% 优于参考 + 优于旧 tile"的准入门槛，配合按架构/形状/SM 数的三层程序路由，展现出数据驱动的 kernel 自动选择与端到端性能工程趋势，持续巩固 FlashInfer 作为大模型推理与训练底层性能基线的地位。
+## 四、值得关注的技术点
+1. **形式化方法落地**：Lean 证明保证批不变 GEMM 位级属性。2. **同步层级削减**：寄存器级局部性替代块级同步，双流零同步拼接。3. **硬件拓扑感知**：非确定性 KCP 反向复用确定性规划更优；经 `cuStreamGetCtx` 读取分区 SM 数。4. **严谨工程文化**：A/A 噪声带、CI95、geomean 与位级校验贯穿验收，新 tile 须快 3% 且逐轮不慢。5. **程序库膨胀风险**：单模块 44–254 条程序记录，未来或需更智能的自动调优机制管理调度复杂度。
+
+## 五、整体展望
+FlashInfer 正深度绑定 Blackwell 全系硬件，在内核微架构优化、低精度量化、训练支持与形式化验证四条线上同步推进，从单纯性能库成长为兼顾精度、可复现性与部署灵活性的高性能算子基础设施，有望巩固其在 NVIDIA 最新硬件上事实标准内核库的地位。
 
 ## 详细提交记录
 
@@ -24165,42 +24185,44 @@ Co-authored-by: Yingyi Huang <averyh@nvidia.com>
 
 - **描述**: A unified inference and post-training framework for accelerated video generation.
 - **语言**: Python
-- **星标数**: 4773
-- **最后更新**: 2026-11-03T01:37:10Z
+- **星标数**: 4776
+- **最后更新**: 2026-11-03T03:20:25Z
 
 ## 提交统计
 
-- **昨日提交总数**: 9
+- **昨日提交总数**: 2
 - **提交者数量**: 2
-- **主要提交者**: Aryan Kumar, William Lin
+- **主要提交者**: William Lin, Aryan Kumar
 
 ## AI分析总结
 
+# FastVideo 仓库昨日提交分析
+
 ## 1. 主要更新类型
+- **Bug修复**：1个（参数透传修复）
+- **功能新增**：1个（2K分辨率模型草稿重新生成）
 
-本批提交以**性能优化**为主（4 条），辅以**功能新增/新模型支持**（3 条）和 **Bug 修复**（2 条），无文档更新或大规模重构。
+## 2. 关键变更点及与项目整体方向的关系
 
-## 2. 关键变更点及与项目方向的关系
+- **`disable_autocast` 参数透传修复**：将 `disable_autocast` 正确传递到 `FastVideoArgs`，这属于推理配置链路的参数完整性修复。FastVideo作为高性能视频生成框架，其 `FastVideoArgs` 是核心配置入口，参数丢失会导致用户无法通过配置关闭混合精度训练/推理，属于影响用户配置灵活性的底层修复。
 
-- **MiniMax H3 性能优化系列**（#2040/#2041/#2046）：涵盖 VAE 解码空间分块并行、解码器 QK RMSNorm 与部分 RoPE 融合、FP4 注意力填充加速、uint8 VAE 像素通路及 cuDNN FP4 GEMM。这与 FastVideo 追求极致视频生成推理速度的核心目标高度一致。
-- **Open-H3-Regenerate-2K 系列**（#2035/#2036/#2037）：将 768P 草稿模型提升至 2560x1440 并接入 OpenAI 视频路由，配合 NVFP4 视频解码器（23s→5s）与 QAD/Trim/V2 草稿重生成，实现文本到 2K 视频生成加速 3.1–3.4 倍，是面向高分辨率生产级推理的关键落地。
-- **新模型支持**（#2038）：新增 Pika H3 Flex 推理支持，扩展了模型生态覆盖面。
-- **Bug 修复**（#2056/#2049）：`disable_autocast` 参数贯通至 FastVideoArgs，以及 FA4 JIT 缓存环境、MXFP8 导入与 scale dtype、H3 VSA gate 双重量化等问题的修复，保障了功能正确性与稳定性。
+- **Open-H3-Regenerate-2K**：重新生成 FastH3 的 QAD、Trim 和 V2 三档草稿（draft），实现文本到2K分辨率的 **3.1–3.4倍加速**。这直接服务于 FastVideo 的核心使命——加速视频生成推理，属于高质量蒸馏/投机解码草稿模型的迭代更新。
 
 ## 3. 对项目的影响和潜在意义
 
-本批提交显著提升了 H3 系列模型在高分辨率（2K）场景下的端到端吞吐与延迟表现，使 FastVideo 在与商业视频生成服务的竞争中具备更强的性能优势。Pika H3 Flex 的加入和 OpenAI 兼容路由的接入降低了用户集成门槛，有利于生态扩展。多处量化（FP4/NVFP4）相关修复与优化表明项目正深入推进低精度推理的生产可用性。
+- **修复层面**：解决了配置参数在调用链中丢失的问题，提升了框架配置的健壮性，避免用户在关闭 autocast 时遇到行为不一致的问题。
+- **性能层面**：2K分辨率下3倍以上的加速对实际部署意义重大——2K是用户对画质的主要诉求之一，此前加速可能集中在低分辨率，此次补齐2K档位使高分辨率推理也具备实用加速能力。
+- **生态层面**：Open-H3 系列的迭代（QAD、Trim、V2多档草稿）表明项目在构建完整的模型加速生态，允许用户在速度与质量之间选择不同档位。
 
 ## 4. 值得关注的技术点
 
-- **NVFP4 与 cuDNN FP4 GEMM**：在视频解码这种计算密集型任务中应用 4-bit 量化并获得 4 倍以上加速，体现了量化与硬件原生算子结合的工程能力。
-- **VAE 解码分块并行**（8 空间分块/次调用）与**算子融合**（RMSNorm+部分 RoPE 融合）：典型的推理图优化手法，对扩散模型视频生成尤为有效。
-- **草稿模型多档位策略**（QAD/Trim/V2）与 768P→2K 上采样工作流：展示了级联/草稿加速架构在实际产品链路中的应用。
-- FA4 JIT 缓存与 tuning 环境变量的修复，提示 FlashAttention 4 集成仍处于快速迭代期。
+- **多档草稿模型架构**：QAD（快速自适应蒸馏）、Trim、V2 三种草稿并存，体现了投机解码（speculative decoding）/知识蒸馏在视频生成中的分层应用，是当前视频加速的前沿方向。
+- **2K加速3.1–3.4x**：这一数字表明蒸馏后的草稿模型在保持生成质量的前提下，对主模型的接受率或加速效率有显著提升，值得关注其背后的蒸馏策略。
+- **`disable_autocast`**：涉及PyTorch混合精度控制，说明框架对数值精度有精细管控需求，这对视频生成这种对浮点敏感的任务尤为重要。
 
-## 5. 基于 README 背景对项目发展的影响
+## 5. 对项目发展的整体影响
 
-结合 README 所展示的 FastVideo 项目定位（面向社区的高性能视频生成框架，配有文档、Cookbook、Quick Start 和定期开发者会议），这批提交反映出项目正从"框架搭建"阶段转向"高分辨率生产级推理"攻坚：一方面通过密集的性能优化和 FP4 量化把 2K 视频生成的延迟压到实用区间，另一方面通过 OpenAI 兼容路由和更多模型（Pika H3 Flex）支持降低接入成本。持续的 bug 修复和共同作者协作模式也印证了 README 中周度开发者会议所体现的活跃社区驱动节奏。总体而言，这些提交强化了 FastVideo 作为开源视频生成推理引擎在速度与易用性上的双重竞争力，为其在高分辨率视频生成领域的领先地位奠定了基础。
+结合README，FastVideo定位为高性能视频生成推理框架，配有文档、Cookbook、Quick Start和定期开发会议，社区活跃度较高。这两条提交分别对应**框架稳定性**和**核心性能指标**两条主线：Bug修复确保配置系统可靠，2K加速突破直接提升用户体验。二者共同推动项目朝着"更快、更稳、更实用"的方向发展，尤其2K加速使该框架在实际生产场景（高分辨率视频生成）中更具竞争力，是吸引用户采用的关键性能卖点。
 
 ## 详细提交记录
 
@@ -24219,62 +24241,6 @@ Co-authored-by: Yingyi Huang <averyh@nvidia.com>
 Co-authored-by: Aryan Kumar <aryan5v@users.noreply.github.com>
 Co-authored-by: Aryan <aryan@aryan5v.dev>
 
-### [b0047cf](https://github.com/hao-ai-lab/FastVideo/commit/b0047cfedc081b31ccc9efc801a5edb8474e15d2)
-
-- **作者**: Aryan Kumar
-- **时间**: 2026-11-02T06:51:41Z
-- **提交信息**: [feat] Open-H3-Regenerate-2K: NVFP4 H3 video decoder (decode 23 s to 5 s at 2K) (#2036)
-
-Co-authored-by: Aryan Kumar <aryan5v@users.noreply.github.com>
-
-### [ac81198](https://github.com/hao-ai-lab/FastVideo/commit/ac81198d33c3695e7c2e982217a73f08ca7532e5)
-
-- **作者**: Aryan Kumar
-- **时间**: 2026-11-02T06:45:09Z
-- **提交信息**: [new-model] Open-H3-Regenerate-2K: 768P H3 draft to 2560x1440, served on the OpenAI video routes (#2035)
-
-Co-authored-by: Aryan Kumar <aryan5v@users.noreply.github.com>
-
-### [cb02062](https://github.com/hao-ai-lab/FastVideo/commit/cb0206293013a53da0a6885f5f4819bd3be639be)
-
-- **作者**: Aryan Kumar
-- **时间**: 2026-11-02T06:33:10Z
-- **提交信息**: [new-model] Add Pika H3 Flex inference support (#2038)
-
-Co-authored-by: Aryan Kumar <aryan5v@users.noreply.github.com>
-
-### [d954fad](https://github.com/hao-ai-lab/FastVideo/commit/d954fad9ecd173ea923cd4d29bbf4891bf838946)
-
-- **作者**: Aryan Kumar
-- **时间**: 2026-11-02T06:23:10Z
-- **提交信息**: [perf] MiniMax H3: faster FP4 attention padding, uint8 VAE pixel path and cuDNN FP4 GEMMs (#2046)
-
-Co-authored-by: Aryan Kumar <aryan5v@users.noreply.github.com>
-
-### [166b9b8](https://github.com/hao-ai-lab/FastVideo/commit/166b9b8a077690228df408a7611996c631a68ca5)
-
-- **作者**: Aryan Kumar
-- **时间**: 2026-11-02T06:15:35Z
-- **提交信息**: [perf] MiniMax H3: fuse VAE decoder QK RMSNorm and partial RoPE (#2041)
-
-Co-authored-by: Aryan Kumar <aryan5v@users.noreply.github.com>
-
-### [7e1ed5e](https://github.com/hao-ai-lab/FastVideo/commit/7e1ed5e28e7aea3e8d8fd5cfd97f4f4499428ce5)
-
-- **作者**: Aryan Kumar
-- **时间**: 2026-11-02T06:06:23Z
-- **提交信息**: [perf] MiniMax H3: decode eight VAE spatial tiles per call by default (#2040)
-
-Co-authored-by: Aryan Kumar <aryan5v@users.noreply.github.com>
-
-### [cb6a9a1](https://github.com/hao-ai-lab/FastVideo/commit/cb6a9a13e1cc54810da19747f57501ef9b06d86f)
-
-- **作者**: Aryan Kumar
-- **时间**: 2026-11-02T03:11:25Z
-- **提交信息**: [bugfix] FA4 JIT cache vs tuning env, MXFP8 import and scale dtype, H3 VSA gate double quantization (#2049)
-
-Co-authored-by: Aryan Kumar <aryan5v@users.noreply.github.com>
-
 ---
 
 <a id="huggingface-diffusers"></a>
@@ -24288,8 +24254,8 @@ Co-authored-by: Aryan Kumar <aryan5v@users.noreply.github.com>
 
 - **描述**: 🤗 Diffusers: State-of-the-art diffusion models for image, video, and audio generation in PyTorch.
 - **语言**: Python
-- **星标数**: 34852
-- **最后更新**: 2026-11-02T20:40:45Z
+- **星标数**: 34853
+- **最后更新**: 2026-11-03T02:30:48Z
 
 ## 提交统计
 
@@ -24336,8 +24302,8 @@ Co-authored-by: Aryan Kumar <aryan5v@users.noreply.github.com>
 
 - **描述**: Enjoy the magic of Diffusion models!
 - **语言**: Python
-- **星标数**: 13335
-- **最后更新**: 2026-11-02T08:10:16Z
+- **星标数**: 13336
+- **最后更新**: 2026-11-03T02:59:09Z
 
 ## 提交统计
 
@@ -24360,44 +24326,49 @@ Co-authored-by: Aryan Kumar <aryan5v@users.noreply.github.com>
 
 - **描述**: SGLang is a high-performance serving framework for large language models and multimodal models.
 - **语言**: Python
-- **星标数**: 38383
-- **最后更新**: 2026-11-03T01:58:02Z
+- **星标数**: 38384
+- **最后更新**: 2026-11-03T03:29:03Z
 
 ## 提交统计
 
 - **昨日提交总数**: 30
 - **提交者数量**: 25
-- **主要提交者**: Lee Nau, seongyun.kim, Kevin Mi
+- **主要提交者**: Aki Yang, EdwardXuy, kpjeeja
 
 ## AI分析总结
 
-## sglang 昨日提交分析
+# sgl-project/sglang 昨日提交分析
 
-### 1. 主要更新类型分布
-- **性能优化（约12条）**：占比最高，涉及解码内核、通信融合、HTTP序列化、diffusion 融合等。
-- **Bug 修复（约8条）**：覆盖 AMD/ROCm、调度器、MoE 精度、XPU 后端等。
-- **CI/测试（约6条）**：NPU、Intel XPU、AMD 夜间任务、MoE 测试阈值调整。
-- **重构与功能新增（约6条）**：内核架构查询集中化、内存池改造、端到端追踪、NPU EPLB。
-- **文档/依赖**：AMD cookbook 更新、sgl-deep-gemm 升级。
+## 1. 主要更新类型
 
-### 2. 关键变更点与项目方向的关系
-- **多硬件生态持续深化**：AMD（MI355X、ROCm Mamba2、确定性 all-reduce）、NPU（Ascend EPLB、DeepSeek-v4/kimi_k3 性能验收）、Intel XPU（Mooncake/NIXL 分离式推理夜测）并行推进，契合 SGLang 作为跨平台 LLM 推理引擎的定位。
-- **调度器核心演进**：prefill 挂起列表化重构、`--prefill-decode-interval` 边界修复，反映项目在 prefill/decode 分离调度上的持续打磨。
-- **大模型针对性优化**：DeepSeek-V4.1 indexer TP 分片、dsv41 小批量解码 CTA 集群拆分、Kimi-K3 FlashInfer AllReduce 自动启用、MoE FP32 路由精度保护，直接服务于旗舰模型的吞吐与精度目标。
-- **可观测性**：mooncake store RPC 端到端请求追踪（#37976），补齐分布式链路追踪能力。
+- **性能优化**（约 12 条）：占比最大，涵盖内核融合、KV 切分、all-reduce 优化、路由精度等
+- **Bug 修复**（约 9 条）：集中在 AMD/ROCm、NPU、调度器与内核导入问题
+- **CI/测试**（约 6 条）：放宽性能阈值、清理磁盘、扩充多硬件验收用例
+- **重构**（3 条）：调度器预填充交接、内存池索引器、GPU 架构查询集中化
+- **功能新增/文档**（少量）：端到端追踪、Ascend 动态 EPLB、AMD cookbook 更新
 
-### 3. 对项目的影响和潜在意义
-- 多后端性能回归的"软着陆"：CI 放宽 bs=1 性能阈值、NVFP4 测试留出 headroom，说明项目正平衡"性能门槛"与"硬件异构"的矛盾，降低误报噪声、提高主干稳定性。
-- 内核与架构查询集中化（`sglang.kernels.arch`）减少散落的 `get_jit_cuda_arch` 依赖，为后续 CUDA/Triton/自定义后端统一抽象铺路。
-- QSA indexer 内存池改为 hybrid sidecar，暗示 DeepSeek 类稀疏注意力索引器的内存管理走向标准化。
+## 2. 关键变更点与项目方向的关系
 
-### 4. 值得关注的技术点
-- **CTA 级解码切分**：dsv41 与 trtllm_mha 均采用"按 CTA cluster 拆分 KV/post-norm 行"的思路，是 Blackwell 时代小批量解码延迟优化的典型手法（后者为 opt-in）。
-- **确定性两阶段 all-reduce**：AMD 大输入固定顺序归约，兼顾性能与可复现性，对训练/评测场景重要。
-- **AI 辅助开发常态化**：多数提交 Co-authored-by Claude 系列模型，反映大规模重构与内核移植已进入人机协作流程。
+- **多硬件生态扩展是核心主线**：AMD（ROCm/Mamba2 导入、确定性两阶段 all-reduce、MI355X 清理）、NPU（Ascend EPLB、DeepSeek_v4/kimi_k3 性能验收）、Intel XPU（Mooncake/NIXL 分离式 P/D nightly）全面铺开，呼应 SGLang 追求跨平台高吞吐推理的目标。
+- **大规模模型性能深挖**：DeepSeek-V4.1 indexer TP 分片、dsv41 mHC decode 的 CTA 集群切分、trtllm_mha 大 batch KV 跨 CTA 切分、MiniMax-H3 编码器 SiLU 融合——针对前沿模型的 decode 小 batch 与长上下文瓶颈精准优化。
+- **调度与内存架构演进**：预填充任务在列表中持有直到交接、QSA 索引器宿主池改为混合 sidecar，体现对预填充/解耦（P/D 分离）架构的持续打磨。
 
-### 5. 对项目发展的整体影响
-结合 README 中"Fast inference for LLMs and multimodal models"的目标，这批提交呈现出三条主线：一是把性能优化从通用路径下沉到具体硬件与具体模型（NVIDIA/AMD/NPU 各自定制），二是通过调度器与内存池重构夯实核心架构，三是借助更完善的 CI、追踪与文档扩大多硬件平台的工程可信度。这些工作共同强化了 SGLang 作为生产级、跨加速器推理框架的竞争力，尤其为 DeepSeek-V4、Kimi-K3 等超长上下文模型的落地提供了内核与调度层支撑。总体而言，项目正从"跑得快"向"在各类硬件上稳定且可验证地跑得快"演进，工程成熟度显著提升。
+## 3. 对项目的影响和潜在意义
+
+- CI 阈值放宽（bs=1 性能上限、NVFP4 Marlin headroom）说明 CI 主机异构性问题突出，降低误报能加快合入节奏。
+- FlashInfer AllReduce Fusion 对 Kimi-K3 自动启用、sgl-router fastokens 加速，直接提升特定热门模型的端到端体验。
+- 修复类提交（FP32 router 精度、prefill-decode-interval、import-time 设备探测）提升系统在无 GPU/混合环境下的健壮性与数值正确性。
+
+## 4. 值得关注的技术点
+
+- **[Perf] imports/内核重构**：把轻量模块与 HF patch、模型配置、调度器解耦，并将 GPU 架构查询集中到 `sglang.kernels.arch`——这是启动速度与可维护性的双赢，也是后续内核工作的基础。
+- **确定性两阶段 all-reduce**：在大输入下用固定顺序保证可复现性，对需要确定性输出的场景价值显著。
+- **Mooncake RPC 端到端追踪**：per-request context 透传，补齐了分布式 KV 场景的可观测性拼图。
+- 大量 Claude 协作提交（Opus/Fable），反映 AI 辅助开发已深度融入该项目的日常贡献流。
+
+## 5. 对项目发展的整体影响
+
+这批提交延续了 SGLang "快"与"广"的双轨战略：一方面在 NVIDIA/AMD/NPU/XPU 上持续压榨 decode 与 all-reduce 性能，巩固其作为高性能 LLM 推理引擎的定位；另一方面通过调度器、内存池、内核架构的系统性重构，为 P/D 分离和多模态/扩散模型（如 MiniMax-H3）的规模化落地铺路。CI 与验收用例的多硬件扩充，标志着项目从"功能可用"走向"跨平台生产就绪"的成熟阶段。
 
 ## 详细提交记录
 
@@ -24663,44 +24634,49 @@ Co-authored-by: AkiYangDev <331522356+AkiYangDev@users.noreply.github.com>
 
 - **描述**: A high-throughput and memory-efficient inference and serving engine for LLMs
 - **语言**: Python
-- **星标数**: 96168
-- **最后更新**: 2026-11-03T02:21:53Z
+- **星标数**: 96173
+- **最后更新**: 2026-11-03T03:15:00Z
 
 ## 提交统计
 
 - **昨日提交总数**: 57
 - **提交者数量**: 48
-- **主要提交者**: Yongye Zhu, Juntian Liu, akii96
+- **主要提交者**: Joachim Studnia, Martin Hickey, Chaojun Zhang
 
 ## AI分析总结
 
-# vLLM 昨日提交分析总结
+## vLLM 昨日提交分析（共57条）
 
-## 1. 主要更新类型
-- **Bug修复**占比最高（约20条），集中在 KV Offload、Rust 前端、注意力内核与模型加载路径
-- **性能优化**次之（约10条），涵盖 FP8/MXFP8 量化内核、稀疏注意力、ROCm 与 DCP 稀疏索引器
-- **CI/构建改进**（约10条），主要是自动分片、ROCm 构建提速与测试稳定性
-- 少量文档更新、重构与前端功能新增
+### 1. 主要更新类型分布
+- **Bug修复**：约20条，占比最高
+- **CI/构建基础设施**：约10条（含4条自动分片CI配置）
+- **性能优化**：约9条
+- **Rust 前端**：约7条
+- **ROCm/AMD 支持**：约8条
+- **文档、重构、测试**：少量
 
-## 2. 关键变更点与项目方向的关系
-- **CI 自动分片**（提交 1-4）：大规模任务自动分片有助于支撑日益增长的多硬件测试矩阵，呼应项目"快速、低成本服务"的目标
-- **KV Offload 多项修复**（22、23、24、32、53）：P2P 存储泄漏、未取回数据排空等问题被系统性收敛，表明 KV 卸载正走向生产可用
-- **多硬件生态完善**：ROCm 构建提速与稳定化、XPU 测试跳过、NIXL 升级 Rubin 支持，持续强化多后端覆盖
-- **Rust 前端加固**（44、51、52、54、55、56）：活跃度高，涉及就绪探测、模板一致性与取消语义，推动前端走向成熟
+### 2. 关键变更点及与项目方向的关系
+- **KV Offload 稳定性**：连续5条修复 P2P 存储的 ID 泄漏、缓存重置、断连与 lookup 状态等问题，直指长上下文与分布式 KV 卸载这一核心能力的可靠性。
+- **稀疏注意力与 Spec Decode**：HiSparse、DSv4.1、MiniMax-M3、MNNVL 等多处修复与优化，契合 README 强调的"fast serving"目标，扩展稀疏/投机解码路径在 NVIDIA 与 AMD 双平台的覆盖。
+- **多硬件生态扩张**：ROCm 上 CDNA3 门控、gfx942 fp8 indexer、MI355 CI、XPU 测试跳过、NIXL 升级，延续跨平台普惠 LLM serving 的愿景。
+- **Rust 前端成熟化**：健康检查与就绪分离、ZMQ 运行时隔离、HF 模板对齐、开发者消息映射、取消语义修复——快速推进 Rust 前端走向生产可用。
+- **CI 自动分片**：4条提交批量将 20+ 测试作业纳入自动分片，反映项目规模扩大后对测试效率的工程化治理。
 
-## 3. 对项目的影响与潜在意义
-- CI 自动化与分片降低维护成本，使贡献者反馈周期缩短
-- 量化与稀疏内核的性能优化直接提升推理吞吐，符合"fast"的项目定位
-- KV Offload 与模型加载修复减少长上下文场景下的数据错误风险，提升可靠性
+### 3. 对项目的影响和潜在意义
+- **可靠性提升**：KV Offload、GPTQ 批不变性、混合精度 KV 清零、Mistral tokenizer 等修复降低了生产环境踩坑概率。
+- **性能收益**：FP8 双值转换、DCP 原位 gather、torch._scaled_mm 融合、sampler 预热等直接减少内存增长与吞吐开销。
+- **构建体验改善**：`triton_kernels` 改用 tarball 省去 400MB git clone，ROCm 构建提速，降低贡献者与 CI 成本。
+- **风险点**：模型加载器（post-load hook 签名重构、就地 refill）改动面较广，可能影响下游自定义加载逻辑。
 
-## 4. 值得关注的技术点
-- FP8 量化内核单次转换处理两个值、DCP top-k 就地读取等细粒度内核优化
-- SM100 解码索引器 logits 按查询行分块的边界修复，涉及新架构适配
-- CUDA graph 捕获后预热采样器以消除负载下显存增长
-- `triton_kernels` 改用源码 tarball 拉取，避免 400MB+ 的 git clone 开销
+### 4. 值得关注的技术点
+- **混合精度 `UniformTypeKVCacheSpecs` 的 KV 清零**：涉及多精度分组的缓存正确性，值得回归验证。
+- **MNI/MoRI 池化与 UMBP TP=2 restore 测试**：暗示新的多实例 KV 池化路径正在落地。
+- **FlashInfer KV layout 声明与 HiSparse all-reduce 规避**：说明算子后端声明与多卡通信边界仍在梳理中。
+- **CUDA graph 后 sampler 预热**：解决长负载下显存单调增长的经典问题。
+- 大量 co-author 为 AI 代理（Claude、Codex、vllm-agent），显示 AI 辅助开发已深度融入该仓库工作流。
 
-## 5. 对项目发展的影响
-结合 README 中"人人可用的低成本 LLM 服务"愿景，这批提交体现了项目从功能扩张转向**工程质量与多硬件成熟度**的阶段：CI 规模化降低协作门槛，ROCm/XPU/NIXL 投入扩大硬件覆盖面，内核与加载路径的修复夯实性能基线。整体而言，这些变更使 vLLM 在保持高性能的同时更稳定、更易维护，为其作为主流 LLM 服务框架的持续演进奠定基础。
+### 5. 对项目发展的整体影响
+围绕 README"简单、快速、廉价的 LLM 服务"的定位，这批提交在三个层面推进：**性能**上继续压榨稀疏注意力与量化内核；**广度**上巩固 ROCm/XPU/NIXL 多后端与新模型（DeepSeek-V4.1、MiniMax、Kimi-K3、Muse）支持；**工程基础**上通过 CI 分片、Rust 前端与 KV Offload 修复夯实生产化能力。整体呈现从"功能铺设"转向"稳定性与效率打磨"的成熟期特征，但 Rust 前端与 KV Offload 仍是活跃演进区，升级时需重点回归测试。
 
 ## 详细提交记录
 
@@ -25291,45 +25267,42 @@ Co-authored-by: Artem Perevedentsev <aperevedents@nvidia.com>
 - **描述**: A framework for efficient model inference with omni-modality models
 - **语言**: Python
 - **星标数**: 7497
-- **最后更新**: 2026-11-03T02:23:56Z
+- **最后更新**: 2026-11-03T03:22:01Z
 
 ## 提交统计
 
-- **昨日提交总数**: 9
-- **提交者数量**: 9
-- **主要提交者**: dongbo910220, Mesut Oezdil, Samit
+- **昨日提交总数**: 19
+- **提交者数量**: 17
+- **主要提交者**: Sy03, · Wu Kui, Samit
 
 ## AI分析总结
 
-## vllm-omni 昨日提交分析（共9条）
+# vllm-omni 昨日提交分析（第 1/1 批，共 19 条）
 
-### 1. 主要更新类型分布
-- **Bug修复（3条）**：多阶段图像生成层数传递、DLO rank-local mmap 形状变化 loader、MoE prefill 与 seeded top-k 内核预热
-- **功能新增（2条）**：MiniMax-H3/Open-H3-Regenerate-2K 模型支持、XPUGraphedForward 跨平台图执行
-- **性能优化（2条）**：MOSS-TTS Delay 采样避免冗余 CUDA mask 发现、RL 全权重同步后 AR 阶段唤醒延迟优化
-- **重构（1条）**：现代类型注解迁移（Optional → X | None）
-- **文档（1条）**：扩散 LoRA scale 语义说明
+## 1. 主要更新类型
+- **Bug 修复**：约 6 条（多阶段图像生成、MOSS 对齐、MiniCPM-o 转接、DLO loader 等）
+- **性能优化**：约 6 条（CUDA graph 覆盖、IPC 权重共享、睡眠唤醒、预热 kernel 等）
+- **功能/模型支持**：MiniMax-H3、Qwen3-Omni 默认切换 MRv2
+- **文档、CI、重构**：少量（typing 现代化、LoRA 文档、CPU CI 提速、微信二维码）
 
-### 2. 关键变更点与项目方向的关系
-- **全模态服务核心承诺的巩固**：项目定位是"Easy, fast, and cheap omni-modality model serving"。MiniMax-H3 新模型接入扩展了可服务模型覆盖面；MOSS-TTS 采样优化直接提升语音模态推理效率，契合 omni 目标。
-- **多后端/多硬件生态扩张**：`GraphedForward` 跨平台共享并新增 Intel XPUGraphedForward（Gaudi/NPU 支持），呼应 vLLM-omni 常见的多加速器（CUDA、ROCm、Gaudi、Ascend 等）战略，降低平台碎片化维护成本。
-- **图像/扩散管线成熟度**：多阶段图像生成层数 bugfix 与扩散 LoRA 文档补充，表明扩散模态正从"能跑"走向"语义清晰、行为正确"。
-- **训练/RL 与推理协同**：DLO mmap loader 与 AR 阶段唤醒优化涉及分布式权重同步与延迟敏感路径，说明项目正服务 RL 后训练与在线推理混合负载场景。
+## 2. 关键变更点与项目方向的关系
+- **模型运行器 v2 (MRv2) 全面推进**：Qwen3-Omni 默认启用 MRv2、AR 阶段预热与睡眠唤醒优化、在 AR 阶段提出 draft tokens——表明项目正将新架构作为核心推理路径。
+- **多硬件/多模态后端扩展**：XPUGraphedForward（Intel/Habana）、Ascend NPUGraph 捕获 CosyVoice3、CUDA IPC 权重共享——契合 README"omni-modality serving"的跨平台定位。
+- **TTS/语音模型打磨**：MOSS-TTS、MiniCPM-o Code2Wav、CosyVoice3 均有修复与 graph 优化，说明语音模态趋于成熟。
 
-### 3. 影响与潜在意义
-- 用户侧：更稳定的多阶段图像生成、更快的 TTS 采样、新模型开箱即用，降低总拥有成本（cheap 承诺）。
-- 贡献者侧：类型注解现代化和图执行抽象统一，减少新硬件后端与新模型接入的样板代码，提升可维护性。
-- 生态侧：Intel、Huawei 等厂商贡献持续活跃，说明项目已成为多厂商共建的中立 omni 服务基座。
+## 3. 对项目的影响和潜在意义
+- MRv2 默认化将提升推理性能上限，但可能引入兼容性风险，需要观察回归情况。
+- 跨平台 graph 抽象（GraphedForward 统一）降低硬件适配成本，利于社区贡献。
+- CPU CI 提速和 typing 现代化改善工程质量与维护效率。
 
-### 4. 值得关注的技术点
-- **`XPUGraphedForward`**：将图捕获/执行抽象为可跨厂商复用的基类，是硬件抽象层设计的典型案例，后续可观察其是否成为统一的 graph capture API。
-- **MOSS-TTS Delay 采样中 CUDA mask 发现去重**：这类"元操作在采样循环内重复执行"的性能反模式在自回归采样中很常见，修复具有通用参考价值。
-- **level-2 sleep 后 AR 阶段唤醒**：细粒度电源/延迟状态管理，对长上下文与大规模张量并行场景的尾延迟有直接影响。
-- **rank-local mmap 中接受形状变化的 loader transform**：分布式 checkpoint 加载的边界情况，直接影响大规模模型加载可靠性。
-- 注意多条提交含 Cursor/Claude 等 AI 工具联署，反映该项目已常态使用 AI 辅助开发。
+## 4. 值得关注的技术点
+- **CUDA graph 深度使用**：Drama 3 sampler replay、Code2Wav 加载即捕获、NPUGraph，体现对首请求延迟的持续优化。
+- **持久化 CUDA IPC 权重共享**：可显著降低多进程/多实例显存占用，是大规模部署的关键能力。
+- **level-2 睡眠唤醒 + RL 全量权重同步**：针对 RL 训练场景的调度优化，较为前沿。
+- 少量提交带有 AI 代理（Cursor、Claude）署名，反映协作方式变化。
 
-### 5. 对项目发展的整体影响
-这批提交呈现"横向扩展（新模型、新硬件后端）+ 纵向打磨（性能、正确性、可维护性）"的健康节奏：一方面持续兑现 omni 全模态与低成本服务的愿景，另一方面通过图执行抽象、类型现代化等基础工程投入为后续更多模态和硬件铺路。短期内用户可见收益集中在 TTS 速度与图像生成稳定性，中长期则体现为多平台支持成本下降和 RL/推理一体化能力增强，这些都直接支撑项目"人人可用的 omni 模型服务"这一核心目标。
+## 5. 基于 README 背景的项目发展影响
+README 目标是"简单、快速、低成本的全模态模型服务"。这批提交直接支撑该愿景：性能侧通过 MRv2、CUDA graph 与权重共享降低成本；覆盖侧新增模型与硬件后端扩大适用面；质量侧大量 bug 修复提升可靠性。整体呈现从"功能铺开"转向"架构统一（MRv2）+ 性能深化 + 多硬件成熟"的阶段，项目正逐步具备生产级服务的稳健性。
 
 ## 详细提交记录
 
@@ -25409,5 +25382,98 @@ Signed-off-by: princepride <wangzhipeng628@gmail.com>
 
 Signed-off-by: SamitHuang <285365963@qq.com>
 Co-authored-by: Cursor <cursoragent@cursor.com>
+
+### [bc7ca18](https://github.com/vllm-project/vllm-omni/commit/bc7ca182f48c16fa1bbf775b6b997c1569b7481f)
+
+- **作者**: · Wu Kui
+- **时间**: 2026-11-02T07:09:03Z
+- **提交信息**: [Kernel] Add Drama 3 sampler CUDA graph replay coverage (#9052)
+
+Signed-off-by: wu kui <wukui1030660585@163.com>
+Signed-off-by: Yueqian Lin <linyueqian@outlook.com>
+Co-authored-by: Yueqian Lin <linyueqian@outlook.com>
+
+### [0c5dab1](https://github.com/vllm-project/vllm-omni/commit/0c5dab181d46a455a379e7fbf05182ab45ad1825)
+
+- **作者**: amy-why-3459
+- **时间**: 2026-11-02T06:59:02Z
+- **提交信息**: [Core] Default Qwen3-Omni CUDA serving to model runner v2 (#9578)
+
+Signed-off-by: amy-why-3459 <wuhaiyan17@huawei.com>
+Co-authored-by: Cursor <cursoragent@cursor.com>
+
+### [9dd5c74](https://github.com/vllm-project/vllm-omni/commit/9dd5c74af1e32095129085055988517f1369f210)
+
+- **作者**: Sy03
+- **时间**: 2026-11-02T04:05:24Z
+- **提交信息**: [Bugfix] Align MOSS Local reference handling and duration conditioning (#9557)
+
+Signed-off-by: Sy03 <1370724210@qq.com>
+
+### [80944b3](https://github.com/vllm-project/vllm-omni/commit/80944b38659073111a0ce9316e4cd88d3bb54a54)
+
+- **作者**: tanhaoan333
+- **时间**: 2026-11-02T03:27:00Z
+- **提交信息**: [Hardware][Ascend] Capture CosyVoice3 Flow and HiFT with NPUGraph (#9619)
+
+Signed-off-by: tanhaoan333 <249022399+tanhaoan333@users.noreply.github.com>
+Co-authored-by: tanhaoan333 <249022399+tanhaoan333@users.noreply.github.com>
+Co-authored-by: buaa14211107 <784377394@qq.com>
+Co-authored-by: amy-why-3459 <wuhaiyan17@huawei.com>
+
+### [b58aff9](https://github.com/vllm-project/vllm-omni/commit/b58aff910dc67898b7f0d80cdb96c7fa9196e409)
+
+- **作者**: WeiQing Chen
+- **时间**: 2026-11-02T03:22:25Z
+- **提交信息**: [Doc] Update vLLM-Omni WeChat QR code (#9716)
+
+Signed-off-by: David Chen <530634352@qq.com>
+Co-authored-by: amy-why-3459 <wuhaiyan17@huawei.com>
+
+### [9990f10](https://github.com/vllm-project/vllm-omni/commit/9990f10d9e898c3d38b1fa640513d55f771b8685)
+
+- **作者**: Chen Cheng
+- **时间**: 2026-11-02T02:57:57Z
+- **提交信息**: [Bugfix] MiniCPM-o turn handoff: pick Thinker rows by position (#9695)
+
+Signed-off-by: Chen Cheng <85005591+ischencheng@users.noreply.github.com>
+
+### [c12668b](https://github.com/vllm-project/vllm-omni/commit/c12668b2f7de254f38da53669d02994dc814a556)
+
+- **作者**: Chen Cheng
+- **时间**: 2026-11-02T02:43:32Z
+- **提交信息**: [Core] Propose draft tokens on MRv2 AR stages; DSpark on the MiniCPM-o Thinker (#9696)
+
+Signed-off-by: Chen Cheng <85005591+ischencheng@users.noreply.github.com>
+Co-authored-by: amy-why-3459 <wuhaiyan17@huawei.com>
+
+### [d94d8e9](https://github.com/vllm-project/vllm-omni/commit/d94d8e9809d8b56e4c58e37a39ddf454ab61f2fd)
+
+- **作者**: y-null
+- **时间**: 2026-11-02T02:06:03Z
+- **提交信息**: [Bugfix][MiniCPM-o] Capture Code2Wav graphs right after load, not on the first request (#9207)
+
+Signed-off-by: y-null <y-null@users.noreply.github.com>
+Co-authored-by: y-null <y-null@users.noreply.github.com>
+
+### [effab8c](https://github.com/vllm-project/vllm-omni/commit/effab8c866b1196406ef5b25e064714a82a74d42)
+
+- **作者**: Honghan Zhu
+- **时间**: 2026-11-02T01:49:00Z
+- **提交信息**: [Core] Add persistent CUDA IPC weight-sharing backend (#9333)
+
+Signed-off-by: zhuhh97 <zhuhonghan@huawei.com>
+Co-authored-by: dengyunyang <584797741@qq.com>
+
+### [552e8e9](https://github.com/vllm-project/vllm-omni/commit/552e8e97240dee86c6ecaf83e36be4a33d1f7485)
+
+- **作者**: wangyu
+- **时间**: 2026-11-02T01:18:01Z
+- **提交信息**: [CI/Build] Cut CPU coverage job runtime and keep it under the step timeout (#9392)
+
+Signed-off-by: yenuo26 <410167048@qq.com>
+Signed-off-by: wangyu <410167048@qq.com>
+Signed-off-by: [Your Name] <your.email@example.com>
+Co-authored-by: amy-why-3459 <wuhaiyan17@huawei.com>
 
 ---
